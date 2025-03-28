@@ -1,0 +1,130 @@
+﻿@{
+    ViewData["Title"] = "Signal Generator";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<!-- فرم برای دریافت سیگنال‌ها -->
+<div>
+    <h4>Get Signals</h4>
+    <form id="getSignalsForm">
+        <label for="count">Signal Count:</label>
+        <input type="number" id="count" name="count" required placeholder="Enter signal count" min="1">
+
+        <label for="minFrequency">Min Frequency (Hz):</label>
+        <input type="number" id="minFrequency" name="minFrequency" required placeholder="Enter minimum frequency" min="0.1">
+
+        <label for="maxFrequency">Max Frequency (Hz):</label>
+        <input type="number" id="maxFrequency" name="maxFrequency" required placeholder="Enter maximum frequency" min="0.1">
+
+        <label for="intervalMs">Interval (ms):</label>
+        <input type="number" id="intervalMs" name="intervalMs" required placeholder="Enter interval in milliseconds" min="100">
+
+        <label for="protocolType">Protocol Type:</label>
+        <select id="protocolType" name="protocolType" required>
+            <option value="http">HTTP</option>
+            <option value="modbus">Modbus</option>
+            <option value="signalar">SignalR</option>
+        </select>
+
+        <button type="submit">Get Signals</button>
+    </form>
+
+    <div id="getSignalsResult"></div>
+</div>
+
+<!-- جدول نمایش سیگنال‌ها -->
+<div>
+    <h4>Received Signals List</h4>
+    <table id="signalsTable" border="1">
+        <thead>
+            <tr>
+                <th>Frequency (Hz)</th>
+                <th>Power (dB)</th>
+                <th>Timestamp</th>
+                <th>Protocol Type</th>
+                <th>Coil Status</th>
+                <th>Discrete Input Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- نمودار -->
+<div>
+    <h4>Signal Frequency vs Power</h4>
+    <canvas id="signalChart" width="400" height="200"></canvas>
+</div>
+
+<!-- اسکریپت‌های CDN -->
+<!-- jQuery -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Chart.js 3.7.1 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+
+        // ارسال درخواست برای دریافت سیگنال‌ها
+        $("#getSignalsForm").submit(function (event) {
+            event.preventDefault();
+
+            var count = $("#count").val();
+            var minFrequency = $("#minFrequency").val();
+            var maxFrequency = $("#maxFrequency").val();
+            var intervalMs = $("#intervalMs").val();
+            var protocolType = $("#protocolType").val();
+
+            $.ajax({
+                url: '/api/signal/get',
+                type: 'GET',
+                data: { count: count, minFrequency: minFrequency, maxFrequency: maxFrequency, intervalMs: intervalMs, protocolType: protocolType },
+                success: function (data) {
+                    // نمایش داده‌ها در جدول
+                    var signalsTable = $("#signalsTable tbody");
+                    signalsTable.empty(); // حذف داده‌های قبلی
+                    data.forEach(function (signal) {
+                        signalsTable.append("<tr><td>" + signal.frequency + "</td><td>" + signal.power + "</td><td>" + signal.timestamp + "</td><td>" + signal.protocolType + "</td><td>" + signal.coilStatus + "</td><td>" + signal.discreteInputStatus + "</td></tr>");
+                    });
+
+                    // ایجاد نمودار با Chart.js
+                    var ctx = document.getElementById('signalChart').getContext('2d');
+                    var chart = new Chart(ctx, {
+                        type: 'line', // نوع نمودار خطی
+                        data: {
+                            labels: data.map(function (signal) { return signal.timestamp; }), // برچسب‌های محور X (زمان)
+                            datasets: [{
+                                label: 'Signal Power (dB)',
+                                data: data.map(function (signal) { return signal.power; }), // داده‌های توان سیگنال
+                                borderColor: 'rgb(75, 192, 192)',
+                                borderWidth: 1,
+                                fill: false
+                            }, {
+                                label: 'Signal Frequency (Hz)',
+                                data: data.map(function (signal) { return signal.frequency; }), // داده‌های فرکانس سیگنال
+                                borderColor: 'rgb(255, 99, 132)',
+                                borderWidth: 1,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    ticks: {
+                                        autoSkip: true,
+                                        maxTicksLimit: 10
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+                error: function (error) {
+                    $("#getSignalsResult").html('<p>Error: ' + error.responseText + '</p>');
+                }
+            });
+        });
+    });
+</script>
