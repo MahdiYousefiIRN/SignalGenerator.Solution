@@ -1,0 +1,45 @@
+﻿@page
+@model ShowSignalModel
+
+<h2>Show Signals</h2>
+
+<!-- نمایش پیام خطا در صورت بروز مشکل -->
+@if (Model.ErrorMessage != null)
+{
+    <p style="color: red;">@Model.ErrorMessage</p>
+}
+
+<h4>Signals</h4>
+
+<!-- نمایش سیگنال‌ها به صورت جدول -->
+@if (Model.Signals.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Frequency</th>
+                <th>Power</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var signal in Model.Signals)
+            {
+                <tr>
+                    <td>@signal.Frequency</td>
+                    <td>@signal.Power</td>
+                    <td>@signal.Timestamp</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No signals available.</p>
+}
+
+<!-- فرم برای قطع ارتباط -->
+<form method="post" asp-page-handler="Disconnect">
+    <button type="submit">Disconnect</button>
+</form>

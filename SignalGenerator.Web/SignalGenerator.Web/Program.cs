@@ -1,66 +1,135 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SignalGenerator.Core.Data;
-using SignalGenerator.Core.Interfaces;
-using SignalGenerator.Core.Services;
-using SignalGenerator.Protocols.Modbus;
+﻿using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Logging;
+using SignalGenerator.Data.Data;
+using SignalGenerator.Data.Interfaces;
+using SignalGenerator.Data.Services;
 using SignalGenerator.Protocols.Http;
-using SignalGenerator.Protocols.SignalR;
-using SignalGenerator.Web;
+using SignalGenerator.Protocols.Modbus;
 using SignalGenerator.Web.SignalHub;
+using SignalGenerator.Data.Models;
+using System.IO.Compression;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// پیکربندی سرویس‌ها
-builder.Services.AddControllersWithViews(); // برای پشتیبانی از صفحات ویو (MVC)
+// -------------------------
+// ✨ Service Registration
+// -------------------------
 
-// پیکربندی DbContext
+// Razor Pages فقط
+builder.Services.AddRazorPages();
+
+// Configure Logging
+builder.Host.ConfigureLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    logging.AddDebug();
+});
+
+// DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// پیکربندی پروتکل‌ها به صورت داینامیک
-builder.Services.AddScoped<IProtocolCommunication>(serviceProvider =>
+// Protocol Services
+var httpProtocolBaseUrl = builder.Configuration["HttpProtocol:BaseUrl"] ?? "http://localhost:5000";
+builder.Services.AddTransient<IProtocolCommunication, Http_Protocol>(sp =>
 {
-    var protocolType = builder.Configuration.GetValue<string>("ProtocolType"); // می‌توان از ورودی‌ها یا تنظیمات استفاده کرد
-    return protocolType switch
-    {
-        "modbus" => new ModbusProtocol("192.168.1.100", 502),
-        "http" => new Http_Protocol("http://localhost:5000"),
-        "signalar" => new SignalRProtocol("http://localhost:5000/signalhub"),
-        _ => throw new ArgumentException("Invalid protocol type.")
-    };
+    var logger = sp.GetRequiredService<ILogger<Http_Protocol>>();
+    return new Http_Protocol(httpProtocolBaseUrl, logger);
 });
 
-// پیکربندی ذخیره‌سازی داده‌ها
-builder.Services.AddScoped<IProtocolDataStore, SqlSignalDataStore>(); // ذخیره‌سازی داده‌ها در دیتابیس
-builder.Services.AddScoped<SignalProcessorService>(); // سرویس پردازش سیگنال‌ها
+var modbusIp = builder.Configuration["Modbus:IpAddress"] ?? "127.0.0.1";
+var modbusPort = int.Parse(builder.Configuration["Modbus:Port"] ?? "502");
+builder.Services.AddTransient<IProtocolCommunication, ModbusProtocol>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<ModbusProtocol>>();
+    return new ModbusProtocol(modbusIp, modbusPort, logger);
+});
 
-// پیکربندی SignalR
-builder.Services.AddSignalR(); // برای پشتیبانی از SignalR
+// SignalR
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = builder.Configuration.GetValue<long>("SignalR:MaxMessageSize", 512000);
+})
+.AddMessagePackProtocol();
 
+// Response Compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+
+// CORS
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:5000" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SignalRPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .AllowCredentials();
+    });
+});
+
+// Project Services
+builder.Services.AddScoped<IProtocolDataStore, SqlSignalDataStore>();
+builder.Services.AddScoped<SignalProcessorService>();
+builder.Services.AddScoped<IDataExportService, DataExportService>();
+builder.Services.AddScoped<ISignalTestingService, SignalTestingService>();
+builder.Services.AddScoped<IErrorHandlingService, ErrorHandlingService>();
+builder.Services.AddScoped<ISystemEvaluationService, SystemEvaluationService>();
+
+// -------------------------
+// 🚀 Build Application
+// -------------------------
 var app = builder.Build();
 
-// پیکربندی مسیریابی
+// -------------------------
+// ✨ Middleware
+// -------------------------
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseResponseCompression();
 app.UseRouting();
-app.UseStaticFiles(); // برای سرویس‌دهی به فایل‌های استاتیک مثل CSS, JS
+app.UseCors("SignalRPolicy");
 
-// پیکربندی مسیرهای کنترلر و SignalR
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}"); // روتینگ برای صفحه اصلی (Home)
+// -------------------------
+// 📌 Endpoints (Only Razor Pages)
+// -------------------------
+app.UseAuthorization();
+app.MapRazorPages();
+app.MapHub<SignalHub>("/signalHub");
 
-// اگر به SignalController نیاز دارید
-app.MapControllerRoute(
-    name: "signal",
-    pattern: "Signal/{action=Index}/{id?}", // تنظیم روتینگ برای SignalController
-    defaults: new { controller = "Signal", action = "Index" });
+// اگر مسیر ناشناخته باشد، به `/Home/Index` هدایت شود
+app.MapFallbackToPage("/Home/Index");
 
-app.MapControllers(); // برای API ها
-app.MapHub<SignalHub>("/signalHub"); // مسیر SignalR
-
+// -------------------------
+// 🏁 Run Application
+// -------------------------
 app.Run();

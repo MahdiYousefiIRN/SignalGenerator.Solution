@@ -1,0 +1,80 @@
+@using SignalGenerator.Web.Models.ViewModels
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">@ViewData["Title"]</h2>
+
+                    <form asp-action="Profile" method="post">
+                        <div asp-validation-summary="All" class="text-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <input asp-for="FirstName" class="form-control" placeholder="First Name" />
+                                    <label asp-for="FirstName">First Name</label>
+                                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <input asp-for="LastName" class="form-control" placeholder="Last Name" />
+                                    <label asp-for="LastName">Last Name</label>
+                                    <span asp-validation-for="LastName" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="Email" class="form-control" placeholder="Email" />
+                            <label asp-for="Email">Email</label>
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="Organization" class="form-control" placeholder="Organization" />
+                            <label asp-for="Organization">Organization</label>
+                            <span asp-validation-for="Organization" class="text-danger"></span>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h4 class="mb-3">Change Password</h4>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="CurrentPassword" class="form-control" placeholder="Current Password" />
+                            <label asp-for="CurrentPassword">Current Password</label>
+                            <span asp-validation-for="CurrentPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="NewPassword" class="form-control" placeholder="New Password" />
+                            <label asp-for="NewPassword">New Password</label>
+                            <span asp-validation-for="NewPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="ConfirmNewPassword" class="form-control" placeholder="Confirm New Password" />
+                            <label asp-for="ConfirmNewPassword">Confirm New Password</label>
+                            <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+} 

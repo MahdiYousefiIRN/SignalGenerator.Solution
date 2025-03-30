@@ -1,74 +1,176 @@
 ﻿using EasyModbus;
-using SignalGenerator.Core.Interfaces;
-using SignalGenerator.Core.Models;
+using SignalGenerator.Data.Interfaces;
+using SignalGenerator.Data.Models;
+using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace SignalGenerator.Protocols.Modbus
 {
     public class ModbusProtocol : IProtocolCommunication
     {
         private readonly ModbusClient _modbusClient;
-        private readonly object _lock = new object();
+        private readonly ILogger<ModbusProtocol> _logger;
+        private readonly SemaphoreSlim _connectionLock = new SemaphoreSlim(1, 1);
+        private readonly object _operationLock = new object();
+        private const int MaxRetries = 3;
+        private const int ConnectionTimeoutMs = 5000;
+        private const int OperationTimeoutMs = 3000;
 
-        public ModbusProtocol(string ipAddress, int port)
+        public ModbusProtocol(string ipAddress, int port, ILogger<ModbusProtocol> logger)
         {
-            _modbusClient = new ModbusClient(ipAddress, port);
+            _logger = logger;
+            _modbusClient = new ModbusClient(ipAddress, port)
+            {
+                ConnectionTimeout = ConnectionTimeoutMs
+            };
         }
 
-        private void EnsureConnection()
+        private async Task EnsureConnectionAsync()
         {
-            if (!_modbusClient.Connected)
+            await _connectionLock.WaitAsync();
+            try
             {
-                _modbusClient.Connect();
-            }
-        }
-
-        public Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config)
-        {
-            EnsureConnection();
-            var signals = new List<SignalData>();
-            lock (_lock)
-            {
-                var registers = _modbusClient.ReadHoldingRegisters(0, config.SignalCount);
-                for (int i = 0; i < config.SignalCount; i++)
+                if (!_modbusClient.Connected)
                 {
-                    signals.Add(new SignalData
+                    _logger.LogInformation("Connecting to Modbus device at {IpAddress}:{Port}", 
+                        _modbusClient.IPAddress, _modbusClient.Port);
+                    
+                    for (int i = 0; i < MaxRetries; i++)
                     {
-                        Frequency = registers[i] / 10.0,
-                        Power = registers[i] * 2,
-                        Timestamp = DateTime.UtcNow,
-                        ProtocolType = "Modbus"
-                    });
+                        try
+                        {
+                            _modbusClient.Connect();
+                            _logger.LogInformation("Successfully connected to Modbus device");
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Connection attempt {Attempt} failed", i + 1);
+                            if (i < MaxRetries - 1)
+                            {
+                                await Task.Delay(1000 * (i + 1));
+                            }
+                        }
+                    }
+                    throw new ProtocolException("Failed to connect to Modbus device after multiple attempts");
                 }
             }
-            return Task.FromResult(signals);
-        }
-
-        public Task<bool> SendSignalsAsync(List<SignalData> signalData)
-        {
-            EnsureConnection();
-            var values = signalData.Select(s => (int)(s.Frequency * 10)).ToArray();
-            lock (_lock)
+            finally
             {
-                _modbusClient.WriteMultipleRegisters(0, values);
+                _connectionLock.Release();
             }
-            return Task.FromResult(true);
         }
 
-        public Task<bool> MonitorStatusAsync()
+        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config)
         {
-            EnsureConnection();
-            lock (_lock)
+            try
             {
-                try
+                await EnsureConnectionAsync();
+                var signals = new List<SignalData>();
+                
+                lock (_operationLock)
+                {
+                    var registers = _modbusClient.ReadHoldingRegisters(0, config.SignalCount);
+                    for (int i = 0; i < config.SignalCount; i++)
+                    {
+                        signals.Add(new SignalData
+                        {
+                            Frequency = registers[i] / 10.0,
+                            Power = registers[i] * 2,
+                            Timestamp = DateTime.UtcNow,
+                            ProtocolType = "Modbus"
+                        });
+                    }
+                }
+
+                _logger.LogInformation("Successfully received {Count} signals from Modbus device", signals.Count);
+                return signals;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error receiving signals from Modbus device");
+                throw new ProtocolException("Failed to receive signals from Modbus device", ex);
+            }
+        }
+
+        public async Task<bool> SendSignalsAsync(List<SignalData> signalData)
+        {
+            if (signalData == null || !signalData.Any())
+            {
+                _logger.LogWarning("Attempted to send empty signal data to Modbus device");
+                return false;
+            }
+
+            try
+            {
+                await EnsureConnectionAsync();
+                var values = signalData.Select(s => (int)(s.Frequency * 10)).ToArray();
+                
+                lock (_operationLock)
+                {
+                    _modbusClient.WriteMultipleRegisters(0, values);
+                }
+
+                _logger.LogInformation("Successfully sent {Count} signals to Modbus device", signalData.Count);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending signals to Modbus device");
+                throw new ProtocolException("Failed to send signals to Modbus device", ex);
+            }
+        }
+
+        public async Task<bool> MonitorStatusAsync()
+        {
+            try
+            {
+                await EnsureConnectionAsync();
+                lock (_operationLock)
                 {
                     var testRegister = _modbusClient.ReadHoldingRegisters(0, 1);
-                    return Task.FromResult(testRegister.Length > 0);
-                }
-                catch
-                {
-                    return Task.FromResult(false);
+                    var status = testRegister.Length > 0;
+                    _logger.LogInformation("Modbus device status check result: {Status}", status);
+                    return status;
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking Modbus device status");
+                throw new ProtocolException("Failed to monitor Modbus device status", ex);
+            }
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (_modbusClient?.Connected == true)
+                {
+                    _modbusClient.Disconnect();
+                }
+                _connectionLock?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing Modbus protocol");
+            }
+        }
+    }
+    public class HttpProtocolOptions
+    {
+        public string BaseUrl { get; set; } = string.Empty;
+    }
+
+    public class ProtocolException : Exception
+    {
+        public ProtocolException(string message) : base(message)
+        {
+        }
+
+        public ProtocolException(string message, Exception innerException) 
+            : base(message, innerException)
+        {
         }
     }
 }

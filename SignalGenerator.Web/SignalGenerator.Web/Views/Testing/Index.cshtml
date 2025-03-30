@@ -1,0 +1,594 @@
+@{
+    ViewData["Title"] = "Signal Testing";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Test Configuration Panel -->
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Test Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <form id="testConfigForm">
+                        <div class="mb-3">
+                            <label for="signalCount" class="form-label">Number of Signals</label>
+                            <input type="number" class="form-control" id="signalCount" min="1" max="100" value="10" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="frequencyRange" class="form-label">Frequency Range (Hz)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="minFrequency" placeholder="Min" value="0" required>
+                                <span class="input-group-text">to</span>
+                                <input type="number" class="form-control" id="maxFrequency" placeholder="Max" value="1000" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="interval" class="form-label">Interval (ms)</label>
+                            <input type="number" class="form-control" id="interval" min="100" max="10000" value="1000" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="protocolType" class="form-label">Protocol Type</label>
+                            <select class="form-select" id="protocolType" required>
+                                <option value="http">HTTP</option>
+                                <option value="modbus">Modbus</option>
+                                <option value="signalr">SignalR</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="performLoadTest" checked>
+                                <label class="form-check-label" for="performLoadTest">
+                                    Perform Load Test
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Run Test</button>
+                            <button type="button" class="btn btn-success" onclick="runSystemEvaluation()">
+                                Run System Evaluation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- System Status Panel -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>CPU Usage</h6>
+                        <div class="progress">
+                            <div id="cpuUsageBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small id="cpuUsageText" class="text-muted">0%</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Memory Usage</h6>
+                        <div class="progress">
+                            <div id="memoryUsageBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small id="memoryUsageText" class="text-muted">0%</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Active Connections</h6>
+                        <p id="activeConnections" class="mb-0">0</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>System Health</h6>
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>Total Errors</span>
+                                <span id="totalErrors" class="badge bg-danger rounded-pill">0</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>Total Warnings</span>
+                                <span id="totalWarnings" class="badge bg-warning rounded-pill">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Component Status</h6>
+                        <div id="componentStatus" class="list-group">
+                            <!-- Component status will be populated here -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Protocol Status</h6>
+                        <div id="protocolStatus" class="list-group">
+                            <!-- Protocol status will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results Panel -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Test Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="testResults" class="d-none">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Test Summary</h6>
+                                <table class="table table-sm">
+                                    <tbody>
+                                        <tr>
+                                            <td>Start Time:</td>
+                                            <td id="startTime">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>End Time:</td>
+                                            <td id="endTime">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Duration:</td>
+                                            <td id="duration">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Signals Generated:</td>
+                                            <td id="signalsGenerated">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Performance Metrics</h6>
+                                <div id="performanceMetrics" class="list-group">
+                                    <!-- Performance metrics will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <h6>Transmission Results</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Protocol</th>
+                                                <th>Total</th>
+                                                <th>Successful</th>
+                                                <th>Failed</th>
+                                                <th>Success Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>HTTP</td>
+                                                <td id="httpTotal">-</td>
+                                                <td id="httpSuccess">-</td>
+                                                <td id="httpFailed">-</td>
+                                                <td id="httpRate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Modbus</td>
+                                                <td id="modbusTotal">-</td>
+                                                <td id="modbusSuccess">-</td>
+                                                <td id="modbusFailed">-</td>
+                                                <td id="modbusRate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>SignalR</td>
+                                                <td id="signalRTotal">-</td>
+                                                <td id="signalRSuccess">-</td>
+                                                <td id="signalRFailed">-</td>
+                                                <td id="signalRRate">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6>Error Log</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="filterErrors('all')">All</button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="filterErrors('errors')">Errors</button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="filterErrors('warnings')">Warnings</button>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="refreshErrors()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                                <div id="errorLog" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                    <!-- Error logs will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="noResults" class="text-center text-muted">
+                        <p class="mb-0">No test results available. Run a test to see results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Initialize variables
+        let currentTest = null;
+
+        // Form submission handler
+        document.getElementById('testConfigForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const config = {
+                signalCount: parseInt(document.getElementById('signalCount').value),
+                minFrequency: parseFloat(document.getElementById('minFrequency').value),
+                maxFrequency: parseFloat(document.getElementById('maxFrequency').value),
+                interval: parseInt(document.getElementById('interval').value),
+                protocolType: document.getElementById('protocolType').value
+            };
+
+            try {
+                // Show loading state
+                const submitButton = e.target.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running Test...';
+
+                // Run test
+                const response = await fetch('/api/Testing/test-transmission', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayTestResults(result.result);
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('An error occurred while running the test');
+                console.error('Error:', error);
+            } finally {
+                // Reset button state
+                const submitButton = e.target.querySelector('button[type="submit"]');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Run Test';
+            }
+        });
+
+        // Update system status periodically
+        setInterval(updateSystemStatus, 5000);
+
+        // Functions
+        async function updateSystemStatus() {
+            try {
+                const response = await fetch('/api/Testing/test-status');
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatusDisplay(result.status);
+                }
+            } catch (error) {
+                console.error('Error updating system status:', error);
+            }
+        }
+
+        function updateStatusDisplay(status) {
+            // Update CPU usage
+            const cpuUsage = status.systemStatus.cpuUsage;
+            document.getElementById('cpuUsageBar').style.width = `${cpuUsage}%`;
+            document.getElementById('cpuUsageText').textContent = `${cpuUsage.toFixed(1)}%`;
+
+            // Update memory usage
+            const memoryUsage = status.systemStatus.memoryUsage;
+            document.getElementById('memoryUsageBar').style.width = `${memoryUsage}%`;
+            document.getElementById('memoryUsageText').textContent = `${memoryUsage.toFixed(1)}%`;
+
+            // Update active connections
+            document.getElementById('activeConnections').textContent = status.systemStatus.activeConnections;
+
+            // Update system health
+            document.getElementById('totalErrors').textContent = status.systemStatus.errorCount;
+            document.getElementById('totalWarnings').textContent = status.systemStatus.warningCount;
+
+            // Update component status
+            const componentStatus = document.getElementById('componentStatus');
+            componentStatus.innerHTML = '';
+            Object.entries(status.componentStatus).forEach(([component, status]) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>${component}</span>
+                        <div>
+                            ${status.errorCount > 0 ? `<span class="badge bg-danger rounded-pill me-2">${status.errorCount} errors</span>` : ''}
+                            ${status.warningCount > 0 ? `<span class="badge bg-warning rounded-pill">${status.warningCount} warnings</span>` : ''}
+                        </div>
+                    </div>
+                    ${status.lastError ? `
+                        <small class="text-muted d-block mt-1">
+                            Last: ${new Date(status.lastError.timestamp).toLocaleString()}
+                        </small>
+                    ` : ''}
+                `;
+                componentStatus.appendChild(item);
+            });
+
+            // Update protocol status
+            const protocolStatus = document.getElementById('protocolStatus');
+            protocolStatus.innerHTML = '';
+            Object.entries(status.protocolStatus).forEach(([protocol, status]) => {
+                const item = document.createElement('div');
+                item.className = `list-group-item d-flex justify-content-between align-items-center ${status.isAvailable ? 'list-group-item-success' : 'list-group-item-danger'}`;
+                item.innerHTML = `
+                    <span>${protocol.toUpperCase()}</span>
+                    <div>
+                        ${status.isAvailable ? '<span class="badge bg-success rounded-pill me-2">Available</span>' : '<span class="badge bg-danger rounded-pill me-2">Unavailable</span>'}
+                        <small class="text-muted">${status.responseTime}ms</small>
+                    </div>
+                `;
+                protocolStatus.appendChild(item);
+            });
+
+            // Update error log
+            updateErrorLog(status.recentErrors);
+        }
+
+        function updateErrorLog(errors) {
+            const errorLog = document.getElementById('errorLog');
+            errorLog.innerHTML = '';
+            errors.forEach(error => {
+                const item = document.createElement('div');
+                item.className = `mb-2 ${error.isWarning ? 'text-warning' : 'text-danger'}`;
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <small>${new Date(error.timestamp).toLocaleString()}</small>
+                            <strong>${error.component}</strong>
+                            <br>
+                            ${error.message}
+                            ${error.context ? `<br><small class="text-muted">Context: ${error.context}</small>` : ''}
+                        </div>
+                        <span class="badge ${error.isWarning ? 'bg-warning' : 'bg-danger'} rounded-pill">
+                            ${error.isWarning ? 'Warning' : 'Error'}
+                        </span>
+                    </div>
+                `;
+                errorLog.appendChild(item);
+            });
+        }
+
+        let currentErrorFilter = 'all';
+
+        function filterErrors(filter) {
+            currentErrorFilter = filter;
+            const errorLog = document.getElementById('errorLog');
+            const items = errorLog.children;
+
+            for (let item of items) {
+                const isWarning = item.classList.contains('text-warning');
+                switch (filter) {
+                    case 'all':
+                        item.style.display = '';
+                        break;
+                    case 'errors':
+                        item.style.display = isWarning ? 'none' : '';
+                        break;
+                    case 'warnings':
+                        item.style.display = isWarning ? '' : 'none';
+                        break;
+                }
+            }
+        }
+
+        async function refreshErrors() {
+            try {
+                const response = await fetch('/api/Testing/errors');
+                const result = await response.json();
+                if (result.success) {
+                    updateErrorLog(result.errors);
+                    filterErrors(currentErrorFilter);
+                }
+            } catch (error) {
+                console.error('Error refreshing error log:', error);
+            }
+        }
+
+        function displayTestResults(result) {
+            // Show results container
+            document.getElementById('testResults').classList.remove('d-none');
+            document.getElementById('noResults').classList.add('d-none');
+
+            // Update summary
+            document.getElementById('startTime').textContent = new Date(result.startTime).toLocaleString();
+            document.getElementById('endTime').textContent = new Date(result.endTime).toLocaleString();
+            document.getElementById('duration').textContent = `${result.duration.toFixed(2)} ms`;
+            document.getElementById('signalsGenerated').textContent = result.signalsGenerated;
+
+            // Update performance metrics
+            const performanceMetrics = document.getElementById('performanceMetrics');
+            performanceMetrics.innerHTML = '';
+            result.performanceMetrics.forEach(metric => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                item.innerHTML = `
+                    <span>${metric.operation}</span>
+                    <span class="badge bg-primary rounded-pill">${metric.duration} ms</span>
+                `;
+                performanceMetrics.appendChild(item);
+            });
+
+            // Update transmission results
+            updateTransmissionResult('http', result.httpTransmissions);
+            updateTransmissionResult('modbus', result.modbusTransmissions);
+            updateTransmissionResult('signalR', result.signalRTransmissions);
+
+            // Update error log
+            updateErrorLog(result.recentErrors);
+        }
+
+        function updateTransmissionResult(protocol, transmissions) {
+            const total = transmissions.total;
+            const successful = transmissions.successful;
+            const failed = transmissions.failed;
+            const rate = total > 0 ? ((successful / total) * 100).toFixed(1) : '0.0';
+
+            document.getElementById(`${protocol}Total`).textContent = total;
+            document.getElementById(`${protocol}Success`).textContent = successful;
+            document.getElementById(`${protocol}Failed`).textContent = failed;
+            document.getElementById(`${protocol}Rate`).textContent = `${rate}%`;
+        }
+
+        function showError(message) {
+            const errorLog = document.getElementById('errorLog');
+            const item = document.createElement('div');
+            item.className = 'text-danger mb-2';
+            item.innerHTML = `
+                <small>${new Date().toLocaleString()}</small><br>
+                ${message}
+            `;
+            errorLog.appendChild(item);
+            errorLog.scrollTop = errorLog.scrollHeight;
+        }
+
+        async function runSystemEvaluation() {
+            const config = {
+                signalCount: parseInt(document.getElementById('signalCount').value),
+                minFrequency: parseFloat(document.getElementById('minFrequency').value),
+                maxFrequency: parseFloat(document.getElementById('maxFrequency').value),
+                interval: parseInt(document.getElementById('interval').value),
+                protocols: ['http', 'modbus', 'signalr'],
+                performLoadTest: document.getElementById('performLoadTest').checked
+            };
+
+            try {
+                // Show loading state
+                const button = document.querySelector('button[onclick="runSystemEvaluation()"]');
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running Evaluation...';
+
+                // Run evaluation
+                const response = await fetch('/api/Testing/evaluate-system', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayEvaluationResults(result.result);
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('An error occurred during system evaluation');
+                console.error('Error:', error);
+            } finally {
+                // Reset button state
+                const button = document.querySelector('button[onclick="runSystemEvaluation()"]');
+                button.disabled = false;
+                button.textContent = 'Run System Evaluation';
+            }
+        }
+
+        function displayEvaluationResults(result) {
+            // Show results container
+            document.getElementById('testResults').classList.remove('d-none');
+            document.getElementById('noResults').classList.add('d-none');
+
+            // Update summary
+            document.getElementById('startTime').textContent = new Date(result.startTime).toLocaleString();
+            document.getElementById('endTime').textContent = new Date(result.endTime).toLocaleString();
+            document.getElementById('duration').textContent = `${result.duration.toFixed(2)} ms`;
+
+            // Update initial status
+            document.getElementById('cpuUsageBar').style.width = `${result.initialStatus.cpuUsage}%`;
+            document.getElementById('cpuUsageText').textContent = `${result.initialStatus.cpuUsage.toFixed(1)}%`;
+            document.getElementById('memoryUsageBar').style.width = `${result.initialStatus.memoryUsage}%`;
+            document.getElementById('memoryUsageText').textContent = `${result.initialStatus.memoryUsage.toFixed(1)}%`;
+
+            // Update performance metrics
+            const performanceMetrics = document.getElementById('performanceMetrics');
+            performanceMetrics.innerHTML = '';
+            result.performanceAnalysis.forEach(analysis => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${analysis.operation}</h6>
+                            <small class="text-muted">
+                                Calls: ${analysis.totalCalls} | 
+                                Avg: ${analysis.averageDuration}ms | 
+                                Min: ${analysis.minDuration}ms | 
+                                Max: ${analysis.maxDuration}ms
+                            </small>
+                        </div>
+                    </div>
+                `;
+                performanceMetrics.appendChild(item);
+            });
+
+            // Update protocol results
+            result.protocolResults.forEach(protocolResult => {
+                updateTransmissionResult(protocolResult.protocol, protocolResult.transmissions);
+            });
+
+            // Update load test results if available
+            if (result.loadTest) {
+                const loadTestRow = document.createElement('tr');
+                loadTestRow.innerHTML = `
+                    <td>Load Test</td>
+                    <td>${result.loadTest.signalsGenerated}</td>
+                    <td>${result.loadTest.transmissions.http.successful + result.loadTest.transmissions.modbus.successful + result.loadTest.transmissions.signalR.successful}</td>
+                    <td>${result.loadTest.transmissions.http.failed + result.loadTest.transmissions.modbus.failed + result.loadTest.transmissions.signalR.failed}</td>
+                    <td>${((result.loadTest.transmissions.http.successful + result.loadTest.transmissions.modbus.successful + result.loadTest.transmissions.signalR.successful) / result.loadTest.signalsGenerated * 100).toFixed(1)}%</td>
+                `;
+                document.querySelector('table tbody').appendChild(loadTestRow);
+            }
+
+            // Update integrity results
+            result.protocolResults.forEach(protocolResult => {
+                const integrity = protocolResult.integrity;
+                const integrityItem = document.createElement('div');
+                integrityItem.className = 'alert alert-info';
+                integrityItem.innerHTML = `
+                    <h6>${protocolResult.protocol.toUpperCase()} Integrity</h6>
+                    <p class="mb-0">
+                        Success Rate: ${integrity.successRate.toFixed(1)}%<br>
+                        Successful: ${integrity.successfulChecks} | Failed: ${integrity.failedChecks}
+                    </p>
+                `;
+                document.getElementById('testResults').insertBefore(integrityItem, document.getElementById('errorLog').parentElement);
+            });
+        }
+
+        // Initial system status update
+        updateSystemStatus();
+    </script>
+} 
