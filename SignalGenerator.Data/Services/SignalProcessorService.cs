@@ -1,57 +1,133 @@
-﻿using SignalGenerator.Data.Interfaces;
+﻿using SignalGenerator.Core.Models;
+using SignalGenerator.Data.Interfaces;
 using SignalGenerator.Data.Models;
 using SignalGenerator.Protocols.SignalR; // اضافه کردن استفاده از SignalR
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace SignalGenerator.Data.Services
 {
     public class SignalProcessorService
     {
         private readonly SignalRProtocol _signalRProtocol;
+        private readonly ILogger<SignalProcessorService> _logger;
 
-        public SignalProcessorService(SignalRProtocol signalRProtocol)
+        // Dependency Injection برای SignalRProtocol و Logger
+        public SignalProcessorService(SignalRProtocol signalRProtocol, ILogger<SignalProcessorService> logger)
         {
             _signalRProtocol = signalRProtocol;
+            _logger = logger;
         }
 
-        // متد برای شروع تولید سیگنال‌ها (ارسال و دریافت)
+        /// <summary>
+        /// Starts the generation of signals using the specified configuration and protocol communication.
+        /// </summary>
+        /// <param name="config">The configuration for signal generation.</param>
+        /// <param name="protocolCommunication">The protocol communication interface to use.</param>
         public async Task StartSignalGeneration(SignalConfig config, IProtocolCommunication protocolCommunication)
         {
-            // دریافت سیگنال‌ها از پروتکل
-            var signalData = await protocolCommunication.ReceiveSignalsAsync(config);
+            try
+            {
+                // دریافت سیگنال‌ها از پروتکل
+                var signalData = await protocolCommunication.ReceiveSignalsAsync(config);
 
-            // ارسال سیگنال‌ها به پروتکل
-            await protocolCommunication.SendSignalsAsync(signalData);
+                // ارسال سیگنال‌ها به پروتکل
+                bool sendSuccess = await protocolCommunication.SendSignalsAsync(signalData);
+                if (!sendSuccess)
+                {
+                    _logger.LogWarning("Failed to send signals via protocol.");
+                }
 
-            // ارسال سیگنال‌ها به SignalR
-            await _signalRProtocol.SendSignalsAsync(signalData);
+                // ارسال سیگنال‌ها به SignalR
+                bool signalRSent = await _signalRProtocol.SendSignalsAsync(signalData);
+                if (!signalRSent)
+                {
+                    _logger.LogWarning("Failed to send signals via SignalR.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in StartSignalGeneration: {ex.Message}");
+            }
         }
 
-        // متد جدید برای دریافت سیگنال‌ها
+        /// <summary>
+        /// Retrieves signals based on the configuration and protocol communication.
+        /// </summary>
+        /// <param name="config">The configuration for retrieving signals.</param>
+        /// <param name="protocolCommunication">The protocol communication interface to use.</param>
+        /// <returns>A list of SignalData objects.</returns>
         public async Task<List<SignalData>> GetSignalsAsync(SignalConfig config, IProtocolCommunication protocolCommunication)
         {
-            // دریافت سیگنال‌ها از پروتکل
-            var signals = await protocolCommunication.ReceiveSignalsAsync(config);
+            try
+            {
+                // دریافت سیگنال‌ها از پروتکل
+                var signals = await protocolCommunication.ReceiveSignalsAsync(config);
 
-            // ارسال سیگنال‌ها به SignalR
-            await _signalRProtocol.SendSignalsAsync(signals);
+                // ارسال سیگنال‌ها به SignalR
+                bool signalRSent = await _signalRProtocol.SendSignalsAsync(signals);
+                if (!signalRSent)
+                {
+                    _logger.LogWarning("Failed to send signals via SignalR.");
+                }
 
-            return signals;
+                return signals;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in GetSignalsAsync: {ex.Message}");
+                return new List<SignalData>();
+            }
         }
 
-        // متد برای ارسال سیگنال‌ها
+        /// <summary>
+        /// Sends a list of signals using the protocol communication.
+        /// </summary>
+        /// <param name="signalData">The list of signals to send.</param>
+        /// <param name="protocolCommunication">The protocol communication interface to use.</param>
+        /// <returns>A boolean indicating whether the signals were sent successfully.</returns>
         public async Task<bool> SendSignalsAsync(List<SignalData> signalData, IProtocolCommunication protocolCommunication)
         {
-            // ارسال سیگنال‌ها به پروتکل
-            return await protocolCommunication.SendSignalsAsync(signalData);
+            try
+            {
+                // ارسال سیگنال‌ها به پروتکل
+                bool result = await protocolCommunication.SendSignalsAsync(signalData);
+                if (!result)
+                {
+                    _logger.LogWarning("Failed to send signals via protocol.");
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in SendSignalsAsync: {ex.Message}");
+                return false;
+            }
         }
 
-        // متد برای نظارت بر وضعیت سیگنال‌ها
+        /// <summary>
+        /// Monitors the status of signals using the protocol communication.
+        /// </summary>
+        /// <param name="protocolCommunication">The protocol communication interface to use.</param>
+        /// <returns>A boolean indicating whether the signal status is being monitored successfully.</returns>
         public async Task<bool> MonitorSignalStatus(IProtocolCommunication protocolCommunication)
         {
-            // نظارت بر وضعیت از طریق پروتکل
-            return await protocolCommunication.MonitorStatusAsync();
+            try
+            {
+                // نظارت بر وضعیت از طریق پروتکل
+                bool result = await protocolCommunication.MonitorStatusAsync();
+                if (!result)
+                {
+                    _logger.LogWarning("Failed to monitor signal status.");
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in MonitorSignalStatus: {ex.Message}");
+                return false;
+            }
         }
     }
 }

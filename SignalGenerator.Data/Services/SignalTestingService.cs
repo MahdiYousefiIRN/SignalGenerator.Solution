@@ -2,6 +2,7 @@
 using SignalGenerator.Data.Models;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using SignalGenerator.Core.Models;
 
 namespace SignalGenerator.Data.Services
 {
@@ -18,6 +19,11 @@ namespace SignalGenerator.Data.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Tests the transmission of signals based on a configuration.
+        /// </summary>
+        /// <param name="config">The configuration for the signal test.</param>
+        /// <returns>A TestResult object containing the results of the test.</returns>
         public async Task<TestResult> TestSignalTransmissionAsync(SignalConfig config)
         {
             var result = new TestResult { StartTime = DateTime.UtcNow, Config = config };
@@ -47,6 +53,11 @@ namespace SignalGenerator.Data.Services
             return result;
         }
 
+        /// <summary>
+        /// Generates test signals based on the configuration.
+        /// </summary>
+        /// <param name="config">The configuration for generating signals.</param>
+        /// <returns>A list of generated SignalData objects.</returns>
         private async Task<List<SignalData>> GenerateTestSignalsAsync(SignalConfig config)
         {
             return await Task.Run(() => Enumerable.Range(0, config.SignalCount).Select(_ => new SignalData
@@ -61,6 +72,12 @@ namespace SignalGenerator.Data.Services
             }).ToList());
         }
 
+        /// <summary>
+        /// Tests the transmission of signals using a specified protocol.
+        /// </summary>
+        /// <param name="signals">The list of signals to transmit.</param>
+        /// <param name="result">The TestResult object to update with the results.</param>
+        /// <param name="protocolType">The type of protocol to use for transmission.</param>
         private async Task TestTransmissionAsync(List<SignalData> signals, TestResult result, string protocolType)
         {
             StartPerformanceMonitoring(protocolType + "_transmission");
@@ -112,6 +129,11 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Verifies the integrity of the signals.
+        /// </summary>
+        /// <param name="signals">The list of signals to verify.</param>
+        /// <param name="result">The TestResult object to update with the results.</param>
         private async Task VerifySignalIntegrityAsync(List<SignalData> signals, TestResult result)
         {
             StartPerformanceMonitoring("integrity_verification");
@@ -142,12 +164,20 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Starts monitoring the performance of an operation.
+        /// </summary>
+        /// <param name="operation">The name of the operation to monitor.</param>
         private void StartPerformanceMonitoring(string operation)
         {
             if (!_performanceTimers.ContainsKey(operation))
                 _performanceTimers[operation] = Stopwatch.StartNew();
         }
 
+        /// <summary>
+        /// Stops monitoring the performance of an operation.
+        /// </summary>
+        /// <param name="operation">The name of the operation to stop monitoring.</param>
         private void StopPerformanceMonitoring(string operation)
         {
             if (_performanceTimers.TryGetValue(operation, out var stopwatch) && stopwatch.IsRunning)
@@ -161,6 +191,10 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Calculates performance metrics based on the execution times.
+        /// </summary>
+        /// <param name="result">The TestResult object to update with the metrics.</param>
         private void CalculatePerformanceMetrics(TestResult result)
         {
             if (!_executionTimes.Any())

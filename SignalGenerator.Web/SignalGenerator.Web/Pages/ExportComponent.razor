@@ -1,0 +1,41 @@
+@page "/export"
+@using SignalGenerator.Data.Services
+
+@inject IDataExportService ExportService
+@inject ILogger<ExportComponent> Logger
+
+<h3>Data Export</h3>
+
+<button @onclick="ExportToCsv">Export to CSV</button>
+<button @onclick="ExportToJson">Export to JSON</button>
+<button @onclick="ExportToExcel">Export to Excel</button>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p>@message</p>
+}
+
+@code {
+    private string message;
+
+    private async Task ExportToCsv()
+    {
+        // Implement export to CSV logic here
+        message = "Export to CSV logic not implemented.";
+        Logger.LogInformation("Export to CSV logic executed.");
+    }
+
+    private async Task ExportToJson()
+    {
+        // Implement export to JSON logic here
+        message = "Export to JSON logic not implemented.";
+        Logger.LogInformation("Export to JSON logic executed.");
+    }
+
+    private async Task ExportToExcel()
+    {
+        // Implement export to Excel logic here
+        message = "Export to Excel logic not implemented.";
+        Logger.LogInformation("Export to Excel logic executed.");
+    }
+} 

@@ -1,0 +1,77 @@
+@page "/show-signal"
+
+@using Microsoft.AspNetCore.SignalR.Client
+@using SignalGenerator.Core.Models
+@inject NavigationManager Navigation
+
+<h2>Show Signals</h2>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color: red;">@ErrorMessage</p>
+}
+
+<h4>Signals</h4>
+
+@if (Signals.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Frequency</th>
+                <th>Power</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var signal in Signals)
+            {
+                <tr>
+                    <td>@signal.Frequency</td>
+                    <td>@signal.Power</td>
+                    <td>@signal.Timestamp</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No signals available.</p>
+}
+
+<button @onclick="Disconnect">Disconnect</button>
+
+@code {
+    private HubConnection _hubConnection;
+    private List<SignalData> Signals { get; set; } = new List<SignalData>();
+    private string ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/signalhub"))
+            .Build();
+
+        _hubConnection.On<List<SignalData>>("ReceiveSignals", (receivedSignals) =>
+        {
+            Signals = receivedSignals;
+            StateHasChanged();
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+            await _hubConnection.SendAsync("RequestSignals");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task Disconnect()
+    {
+        await _hubConnection.StopAsync();
+    }
+} 

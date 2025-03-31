@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SignalGenerator.Core.Models;
 using SignalGenerator.Data.Models;
 
 namespace SignalGenerator.Data.Data

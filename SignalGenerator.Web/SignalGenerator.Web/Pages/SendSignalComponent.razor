@@ -1,0 +1,117 @@
+@page "/send-signal"
+@using SignalGenerator.Core.Models
+@using SignalGenerator.Data.Interfaces
+@using SignalGenerator.Data.Services
+@using SignalGenerator.Protocols.Http
+@using SignalGenerator.Protocols.Modbus
+@using SignalGenerator.Protocols.SignalR
+
+@inject SignalProcessorService SignalProcessorService
+@inject ILogger<SendSignalComponent> Logger
+
+<h2>Send Signal</h2>
+
+<div>
+    <h4>Send Signals</h4>
+    <form @onsubmit="SendSignals">
+        <label for="protocolType">Protocol Type:</label>
+        <select id="protocolType" @bind="ProtocolType" required>
+            <option value="http">HTTP</option>
+            <option value="modbus">Modbus</option>
+            <option value="signalar">SignalR</option>
+        </select>
+
+        <label for="signalCount">Number of Signals:</label>
+        <input type="number" id="signalCount" @bind="SignalCount" min="1" max="1000" placeholder="Enter number of signals" required />
+
+        <label for="duration">Duration (in minutes):</label>
+        <input type="number" id="duration" @bind="Duration" min="1" max="1440" placeholder="Duration in minutes" required />
+
+        <button type="submit">Send Signals</button>
+    </form>
+
+    <div id="sendResult">
+        @if (!string.IsNullOrEmpty(SendResult))
+        {
+            <p class="success-msg">@SendResult</p>
+        }
+    </div>
+</div>
+
+<style>
+    .success-msg {
+        color: green;
+        font-weight: bold;
+    }
+    .error-msg {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+
+@code {
+    private string ProtocolType { get; set; } = "http";
+    private int SignalCount { get; set; } = 10;
+    private int Duration { get; set; } = 60;
+    private string SendResult { get; set; }
+
+    private async Task SendSignals()
+    {
+        try
+        {
+            var signals = GenerateRandomSignals(SignalCount);
+            var protocolCommunication = GetProtocol(ProtocolType);
+            var result = await SignalProcessorService.SendSignalsAsync(signals, protocolCommunication);
+            SendResult = result ? "Signals sent successfully." : "Failed to send signals.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred while sending signals.");
+            SendResult = $"Error: {ex.Message}";
+        }
+    }
+
+    private List<SignalData> GenerateRandomSignals(int count)
+    {
+        var signals = new List<SignalData>();
+        var random = new Random();
+
+        for (int i = 0; i < count; i++)
+        {
+            double randomFrequency = random.NextDouble() * (70 - 40) + 40;
+            double randomPower = random.NextDouble() * 100;
+            DateTime timestamp = DateTime.UtcNow;
+
+            var signal = new SignalData
+            {
+                Frequency = randomFrequency,
+                Power = randomPower,
+                Timestamp = timestamp,
+                CoilStatus = random.NextDouble() > 0.5,
+                DiscreteInputStatus = random.NextDouble() > 0.5,
+                ProtocolType = ProtocolType
+            };
+
+            signals.Add(signal);
+        }
+
+        return signals;
+    }
+
+    private IProtocolCommunication GetProtocol(string protocolType)
+    {
+        var protocols = new Dictionary<string, Func<IProtocolCommunication>>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "http", () => new Http_Protocol("http://localhost:5000", Logger as ILogger<Http_Protocol>) },
+            { "modbus", () => new ModbusProtocol("192.168.1.100", 502, Logger as ILogger<ModbusProtocol>) },
+            { "signalar", () => new SignalRProtocol("http://localhost:5000/signalhub", Logger as ILogger<SignalRProtocol>) }
+        };
+
+        if (protocols.TryGetValue(protocolType, out var createProtocol))
+        {
+            return createProtocol();
+        }
+
+        throw new ArgumentException($"Invalid protocol type: {protocolType}");
+    }
+} 

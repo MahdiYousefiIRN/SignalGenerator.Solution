@@ -1,0 +1,46 @@
+@page "/get-signal"
+
+@inject HttpClient Http
+
+<h2>Get Signals</h2>
+
+<form @onsubmit="GetSignals">
+    <label>Count:</label>
+    <input type="number" @bind="Count" required>
+
+    <label>Protocol:</label>
+    <select @bind="ProtocolType">
+        <option value="http">HTTP</option>
+        <option value="modbus">Modbus</option>
+        <option value="signalar">SignalR</option>
+    </select>
+
+    <button type="submit">Get</button>
+</form>
+
+<div id="result">
+    @if (!string.IsNullOrEmpty(Result))
+    {
+        <pre>@Result</pre>
+    }
+</div>
+
+@code {
+    private int Count { get; set; }
+    private string ProtocolType { get; set; } = "http";
+    private string Result { get; set; }
+
+    private async Task GetSignals()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"/api/signal/get?count={Count}&protocolType={ProtocolType}");
+            response.EnsureSuccessStatusCode();
+            Result = await response.Content.ReadAsStringAsync();
+        }
+        catch (Exception ex)
+        {
+            Result = $"Error: {ex.Message}";
+        }
+    }
+} 

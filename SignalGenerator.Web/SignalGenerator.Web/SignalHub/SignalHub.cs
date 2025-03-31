@@ -2,6 +2,7 @@
 using SignalGenerator.Data.Models;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using SignalGenerator.Core.Models;
 
 namespace SignalGenerator.Web.SignalHub
 {
@@ -55,10 +56,8 @@ namespace SignalGenerator.Web.SignalHub
                     return;
                 }
 
-                // Update last signal time
                 _lastSignalTimes.AddOrUpdate(Context.ConnectionId, DateTime.UtcNow, (_, __) => DateTime.UtcNow);
 
-                // Send to all clients
                 await Clients.All.SendAsync("ReceiveSignal", signal);
                 _logger.LogInformation("Signal sent to all clients from {ConnectionId}", Context.ConnectionId);
             }
@@ -80,13 +79,11 @@ namespace SignalGenerator.Web.SignalHub
                 }
 
                 await Clients.Client(connectionId).SendAsync("ReceiveSignal", signal);
-                _logger.LogInformation("Signal sent to client {TargetConnectionId} from {SourceConnectionId}", 
-                    connectionId, Context.ConnectionId);
+                _logger.LogInformation("Signal sent to client {TargetConnectionId} from {SourceConnectionId}", connectionId, Context.ConnectionId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending signal to client {TargetConnectionId} from {SourceConnectionId}", 
-                    connectionId, Context.ConnectionId);
+                _logger.LogError(ex, "Error sending signal to client {TargetConnectionId} from {SourceConnectionId}", connectionId, Context.ConnectionId);
                 throw;
             }
         }
@@ -102,13 +99,11 @@ namespace SignalGenerator.Web.SignalHub
                 }
 
                 await Clients.Group(groupName).SendAsync("ReceiveSignal", signal);
-                _logger.LogInformation("Signal sent to group {GroupName} from {ConnectionId}", 
-                    groupName, Context.ConnectionId);
+                _logger.LogInformation("Signal sent to group {GroupName} from {ConnectionId}", groupName, Context.ConnectionId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending signal to group {GroupName} from {ConnectionId}", 
-                    groupName, Context.ConnectionId);
+                _logger.LogError(ex, "Error sending signal to group {GroupName} from {ConnectionId}", groupName, Context.ConnectionId);
                 throw;
             }
         }
@@ -119,13 +114,11 @@ namespace SignalGenerator.Web.SignalHub
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
                 _userGroups.AddOrUpdate(Context.ConnectionId, groupName, (_, __) => groupName);
-                _logger.LogInformation("Client {ConnectionId} added to group {GroupName}", 
-                    Context.ConnectionId, groupName);
+                _logger.LogInformation("Client {ConnectionId} added to group {GroupName}", Context.ConnectionId, groupName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding client {ConnectionId} to group {GroupName}", 
-                    Context.ConnectionId, groupName);
+                _logger.LogError(ex, "Error adding client {ConnectionId} to group {GroupName}", Context.ConnectionId, groupName);
                 throw;
             }
         }
@@ -136,46 +129,11 @@ namespace SignalGenerator.Web.SignalHub
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
                 _userGroups.TryRemove(Context.ConnectionId, out _);
-                _logger.LogInformation("Client {ConnectionId} removed from group {GroupName}", 
-                    Context.ConnectionId, groupName);
+                _logger.LogInformation("Client {ConnectionId} removed from group {GroupName}", Context.ConnectionId, groupName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing client {ConnectionId} from group {GroupName}", 
-                    Context.ConnectionId, groupName);
-                throw;
-            }
-        }
-
-        public async Task<List<SignalData>> GetRecentSignals(int count = 10)
-        {
-            try
-            {
-                // In a real implementation, you would fetch this from a database or cache
-                // For now, we'll return an empty list
-                return new List<SignalData>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting recent signals for client {ConnectionId}", Context.ConnectionId);
-                throw;
-            }
-        }
-
-        public async Task<bool> IsClientActive(string connectionId)
-        {
-            try
-            {
-                if (_lastSignalTimes.TryGetValue(connectionId, out DateTime lastSignalTime))
-                {
-                    var timeSinceLastSignal = DateTime.UtcNow - lastSignalTime;
-                    return timeSinceLastSignal.TotalMinutes < 5; // Consider client active if signal received within last 5 minutes
-                }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking client activity for {ConnectionId}", connectionId);
+                _logger.LogError(ex, "Error removing client {ConnectionId} from group {GroupName}", Context.ConnectionId, groupName);
                 throw;
             }
         }

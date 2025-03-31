@@ -1,0 +1,108 @@
+﻿@page "/signals"
+@using SignalGenerator.Core.Models
+@using SignalGenerator.Data.Interfaces
+@using SignalGenerator.Data.Models
+@using SignalGenerator.Data.Services
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IProtocolDataStore DataStore
+@inject ILogger<SignalComponent> Logger
+@inject SignalProcessorService SignalProcessor
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IProtocolCommunication ProtocolCommunication
+
+<h3>Signal Management</h3>
+
+<button @onclick="GenerateSignals">Generate Signals</button>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color:red">@errorMessage</p>
+}
+
+@if (signals != null && signals.Any())
+{
+    <ul>
+        @foreach (var signal in signals)
+        {
+            <li>@signal.Id - @signal.Name</li>
+        }
+    </ul>
+}
+else
+{
+    <p>No signals found.</p>
+}
+
+@code {
+    private List<SignalData> signals = new(); // مقداردهی اولیه
+    private string errorMessage = string.Empty;
+
+    private async Task GenerateSignals()
+    {
+        try
+        {
+            var userId = await GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                errorMessage = "User ID is not available.";
+                return;
+            }
+
+            if (ProtocolCommunication == null)
+            {
+                errorMessage = "ProtocolCommunication is not available.";
+                return;
+            }
+
+            var config = new SignalConfig
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    SignalCount = 10,
+                    MinFrequency = 45,
+                    MaxFrequency = 65,
+                    Interval = 5,
+                    IntervalMs = 5 * 1000, // محاسبه صحیح IntervalMs
+                    ProtocolType = "DefaultProtocol"
+                };
+
+            signals = await SignalProcessor.GetSignalsAsync(config, ProtocolCommunication);
+            await DataStore.SaveSignalsAsync(signals);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error generating signals");
+            errorMessage = "An error occurred while generating signals.";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userId = await GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                errorMessage = "User ID is not available.";
+                signals = new();
+                return;
+            }
+
+            signals = await DataStore.GetSignalsAsync(userId, DateTime.MinValue, DateTime.MaxValue);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error retrieving signals");
+            errorMessage = "An error occurred while retrieving signals.";
+            signals = new();
+        }
+    }
+
+    private async Task<string?> GetCurrentUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authState?.User?.Identity?.IsAuthenticated == true ? authState.User.Identity.Name : null;
+    }
+}

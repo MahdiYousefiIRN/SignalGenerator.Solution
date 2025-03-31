@@ -1,0 +1,16 @@
+﻿@{
+    ViewData["Title"] = "Home";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Signal Generator Home</h1>
+
+<nav>
+    <ul>
+        <li><a asp-controller="SendSignal" asp-action="Index">Send Signal</a></li>
+        <li><a asp-controller="ShowSignal" asp-action="ShowSignal">Get Signal</a></li>
+        <li><a asp-controller="StatusSignal" asp-action="Index">Status</a></li>
+    </ul>
+</nav>
+
+<p>به سیستم تولید و مدیریت سیگنال خوش آمدید!</p>

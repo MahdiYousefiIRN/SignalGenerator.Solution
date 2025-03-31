@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SignalGenerator.Web.Models.ViewModels
+namespace SignalGenerator.Web.ViewModels
 {
     public class LoginViewModel
     {

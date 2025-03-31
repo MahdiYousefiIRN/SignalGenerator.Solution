@@ -1,0 +1,52 @@
+@page "/testing"
+@using SignalGenerator.Data.Interfaces
+@using SignalGenerator.Data.Services
+
+@inject ISignalTestingService TestingService
+@inject IErrorHandlingService ErrorHandlingService
+@inject ISystemEvaluationService EvaluationService
+@inject ILogger<TestingComponent> Logger
+
+<h3>Testing Management</h3>
+
+<button @onclick="TestSignalTransmission">Test Signal Transmission</button>
+<button @onclick="GetTestStatus">Get Test Status</button>
+<button @onclick="GetErrors">Get Errors</button>
+<button @onclick="EvaluateSystem">Evaluate System</button>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p>@message</p>
+}
+
+@code {
+    private string message;
+
+    private async Task TestSignalTransmission()
+    {
+        // Implement test signal transmission logic here
+        message = "Test signal transmission logic not implemented.";
+        Logger.LogInformation("Test signal transmission logic executed.");
+    }
+
+    private async Task GetTestStatus()
+    {
+        // Implement get test status logic here
+        message = "Get test status logic not implemented.";
+        Logger.LogInformation("Get test status logic executed.");
+    }
+
+    private async Task GetErrors()
+    {
+        // Implement get errors logic here
+        message = "Get errors logic not implemented.";
+        Logger.LogInformation("Get errors logic executed.");
+    }
+
+    private async Task EvaluateSystem()
+    {
+        // Implement evaluate system logic here
+        message = "Evaluate system logic not implemented.";
+        Logger.LogInformation("Evaluate system logic executed.");
+    }
+} 

@@ -1,0 +1,48 @@
+@page "/account"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity.UI.Services
+@using SignalGenerator.Data.Models
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<AccountComponent> Logger
+@inject IEmailSender EmailSender
+
+<h3>Account Management</h3>
+
+<button @onclick="Register">Register</button>
+<button @onclick="Login">Login</button>
+<button @onclick="Logout">Logout</button>
+
+@if (registrationMessage != null)
+{
+    <p>@registrationMessage</p>
+}
+
+@if (loginMessage != null)
+{
+    <p>@loginMessage</p>
+}
+
+@code {
+    private string registrationMessage;
+    private string loginMessage;
+
+    private async Task Register()
+    {
+        // Implement registration logic here
+        registrationMessage = "Registration logic not implemented.";
+    }
+
+    private async Task Login()
+    {
+        // Implement login logic here
+        loginMessage = "Login logic not implemented.";
+    }
+
+    private async Task Logout()
+    {
+        await SignInManager.SignOutAsync();
+        Logger.LogInformation("User logged out.");
+    }
+} 

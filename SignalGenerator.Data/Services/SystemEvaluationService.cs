@@ -24,6 +24,11 @@ namespace SignalGenerator.Data.Services
             _performanceMetrics = new Dictionary<string, PerformanceMetric>();
         }
 
+        /// <summary>
+        /// Evaluates the system based on a configuration.
+        /// </summary>
+        /// <param name="config">The configuration for the system evaluation.</param>
+        /// <returns>An EvaluationResult object containing the results of the evaluation.</returns>
         public async Task<EvaluationResult> EvaluateSystemAsync(EvaluationConfig config)
         {
             if (config == null)
@@ -73,6 +78,11 @@ namespace SignalGenerator.Data.Services
             return result;
         }
 
+        /// <summary>
+        /// Tests a specific protocol.
+        /// </summary>
+        /// <param name="protocol">The protocol to test.</param>
+        /// <param name="result">The EvaluationResult object to update with the results.</param>
         private async Task TestProtocolAsync(string protocol, EvaluationResult result)
         {
             if (string.IsNullOrEmpty(protocol))
@@ -97,6 +107,10 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Performs a load test on the system.
+        /// </summary>
+        /// <param name="result">The EvaluationResult object to update with the results.</param>
         private async Task PerformLoadTestAsync(EvaluationResult result)
         {
             var loadTestConfig = new SignalConfig
@@ -118,6 +132,10 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Verifies the integrity of signals.
+        /// </summary>
+        /// <param name="result">The EvaluationResult object to update with the results.</param>
         private Task VerifySignalIntegrityAsync(EvaluationResult result)
         {
             foreach (var protocolResult in result.ProtocolResults.Values)
@@ -136,6 +154,10 @@ namespace SignalGenerator.Data.Services
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Analyzes the performance of the system.
+        /// </summary>
+        /// <param name="result">The EvaluationResult object to update with the results.</param>
         private void AnalyzePerformance(EvaluationResult result)
         {
             foreach (var metric in _performanceMetrics)
@@ -150,6 +172,11 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Tracks performance metrics for operations.
+        /// </summary>
+        /// <param name="operation">The name of the operation to track.</param>
+        /// <param name="duration">The duration of the operation.</param>
         private void TrackPerformanceMetric(string operation, long duration)
         {
             if (string.IsNullOrEmpty(operation))

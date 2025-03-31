@@ -35,6 +35,12 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Logs an error with the specified component and context.
+        /// </summary>
+        /// <param name="component">The component where the error occurred.</param>
+        /// <param name="ex">The exception that was thrown.</param>
+        /// <param name="context">Optional context information about the error.</param>
         public void LogError(string component, Exception ex, string? context = null)
         {
             if (string.IsNullOrEmpty(component))
@@ -69,6 +75,12 @@ namespace SignalGenerator.Data.Services
             _logger.LogError(ex, "Error in {Component}: {Message}", component, ex.Message);
         }
 
+        /// <summary>
+        /// Logs a warning with the specified component and context.
+        /// </summary>
+        /// <param name="component">The component where the warning occurred.</param>
+        /// <param name="message">The warning message.</param>
+        /// <param name="context">Optional context information about the warning.</param>
         public void LogWarning(string component, string message, string? context = null)
         {
             if (string.IsNullOrEmpty(component))
@@ -97,6 +109,10 @@ namespace SignalGenerator.Data.Services
             _logger.LogWarning("Warning in {Component}: {Message}", component, message);
         }
 
+        /// <summary>
+        /// Retrieves the current system status.
+        /// </summary>
+        /// <returns>A SystemStatus object containing the current system metrics.</returns>
         public SystemStatus GetSystemStatus()
         {
             try
@@ -143,6 +159,12 @@ namespace SignalGenerator.Data.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves recent errors for a specified component.
+        /// </summary>
+        /// <param name="component">Optional component to filter errors by.</param>
+        /// <param name="count">The number of recent errors to retrieve.</param>
+        /// <returns>A list of recent ErrorEvent objects.</returns>
         public List<ErrorEvent> GetRecentErrors(string? component = null, int count = 100)
         {
             if (count <= 0)

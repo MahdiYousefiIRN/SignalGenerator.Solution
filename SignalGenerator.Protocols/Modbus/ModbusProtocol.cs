@@ -3,6 +3,7 @@ using SignalGenerator.Data.Interfaces;
 using SignalGenerator.Data.Models;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using SignalGenerator.Core.Models;
 
 namespace SignalGenerator.Protocols.Modbus
 {

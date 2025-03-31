@@ -1,43 +1,41 @@
-﻿using SignalGenerator.Data.Interfaces;
-using SignalGenerator.Data.Models;
+using SignalGenerator.Core.Interfaces;
+using SignalGenerator.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using SignalGenerator.Core.Models;
 
-namespace SignalGenerator.Data.Data
+namespace SignalGenerator.Infrastructure.Repositories
 {
-    public class SqlSignalDataStore : IProtocolDataStore
+    public class SignalRepository : ISignalRepository
     {
         private readonly AppDbContext _dbContext;
 
-        public SqlSignalDataStore(AppDbContext dbContext)
+        public SignalRepository(AppDbContext dbContext)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _dbContext = dbContext;
         }
-        public async Task<List<SignalData>> GetSignalsAsync(string userId, DateTime? startTime = null, DateTime? endTime = null, string? protocolType = null)
+
+        public async Task<List<SignalData>> GetSignalsAsync(string userId, DateTime? startTime, DateTime? endTime, string? protocolType = null)
         {
             var query = _dbContext.Signals.AsQueryable();
 
-            // فیلتر بر اساس UserId
             if (!string.IsNullOrEmpty(userId))
             {
-                query = query.Where(s => s.Id == userId);
+                query = query.Where(s => s.UserId == userId);
             }
 
-            // فیلتر بر اساس startTime و endTime با بررسی null
             if (startTime.HasValue)
             {
                 query = query.Where(s => s.Timestamp >= startTime.Value);
             }
+
             if (endTime.HasValue)
             {
                 query = query.Where(s => s.Timestamp <= endTime.Value);
             }
 
-            // فیلتر بر اساس protocolType
             if (!string.IsNullOrEmpty(protocolType))
             {
                 query = query.Where(s => s.ProtocolType == protocolType);
@@ -45,8 +43,6 @@ namespace SignalGenerator.Data.Data
 
             return await query.ToListAsync();
         }
-
-
 
         public async Task<bool> SaveSignalsAsync(List<SignalData> signals)
         {
@@ -62,11 +58,11 @@ namespace SignalGenerator.Data.Data
             }
         }
 
-        public async Task<bool> SendSignalAsync(SignalData signal, string protocolType)
+        public async Task<bool> SendSignalAsync(SignalData signal, string protocol)
         {
             try
             {
-                signal.ProtocolType = protocolType;
+                signal.ProtocolType = protocol;
                 await _dbContext.Signals.AddAsync(signal);
                 await _dbContext.SaveChangesAsync();
                 return true;
@@ -112,7 +108,15 @@ namespace SignalGenerator.Data.Data
         {
             return await _dbContext.Signals.FirstOrDefaultAsync(s => s.Id == id);
         }
-
-       
     }
-}
+
+    public interface ISignalRepository
+    {
+        Task<List<SignalData>> GetSignalsAsync(string userId, DateTime? startTime, DateTime? endTime, string? protocolType = null);
+        Task<bool> SaveSignalsAsync(List<SignalData> signals);
+        Task<bool> SendSignalAsync(SignalData signal, string protocol);
+        Task<bool> DeleteSignalAsync(string id);
+        Task<bool> UpdateSignalAsync(SignalData signal);
+        Task<SignalData?> GetSignalAsync(string id);
+    }
+} 
