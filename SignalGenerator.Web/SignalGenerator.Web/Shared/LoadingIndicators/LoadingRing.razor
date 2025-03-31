@@ -1,0 +1,33 @@
+@code {
+    [Parameter] public bool IsVisible { get; set; } = true;
+}
+
+@if (IsVisible)
+{
+    <div class="loading-ring">
+        <div class="ring"></div>
+    </div>
+}
+
+<style>
+    .loading-ring {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+    }
+
+    .ring {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+   
+
+    }
+</style>

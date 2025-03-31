@@ -8,9 +8,9 @@ using SignalGenerator.Data.Services;
 using SignalGenerator.Protocols.Http;
 using SignalGenerator.Protocols.Modbus;
 using SignalGenerator.Protocols.SignalR; // اضافه کردن SignalRProtocol
-using SignalGenerator.Web.SignalHub;
 using SignalGenerator.Data.Models;
 using System.IO.Compression;
+using SignalGenerator.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,7 +79,7 @@ builder.Services.AddSignalR(options =>
     options.MaximumReceiveMessageSize = builder.Configuration.GetValue<long>("SignalR:MaxMessageSize", 512000);
 })
 .AddMessagePackProtocol();
-
+builder.Services.AddServerSideBlazor();
 // -------------------------
 // 📦 Response Compression
 // -------------------------
@@ -118,17 +118,18 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IProtocolDataStore, SqlSignalDataStore>();
 builder.Services.AddScoped<SignalProcessorService>();
 builder.Services.AddScoped<IDataExportService, DataExportService>();
-builder.Services.AddScoped<ISignalTestingService, SignalTestingService>();
 builder.Services.AddScoped<IErrorHandlingService, ErrorHandlingService>();
 builder.Services.AddScoped<ISystemEvaluationService, SystemEvaluationService>();
+builder.Services.AddScoped<ISignalTestingService, SignalTestingService>();
 
 // اصلاح: فقط یک بار SignalRProtocol را ثبت کنیم
 builder.Services.AddScoped<SignalRProtocol>(provider =>
 {
     var logger = provider.GetRequiredService<ILogger<SignalRProtocol>>();
-    var connectionString = builder.Configuration["SignalR:ConnectionString"];
-    return new SignalRProtocol(connectionString, logger);
+    var hubUrl = builder.Configuration["SignalR:HubUrl"];  
+    return new SignalRProtocol(hubUrl, logger);
 });
+
 
 // -------------------------
 // 🚀 Build Application
@@ -170,6 +171,8 @@ app.UseAuthorization();
 // 📌 Endpoints (Controllers + Razor Pages)
 // -------------------------
 app.MapRazorPages();
+app.MapBlazorHub();
+app.MapFallbackToPage("/_Host");  // مهم برای مسیر‌یابی Blazor
 app.MapControllers();
 app.MapHub<SignalHub>("/signalHub");
 

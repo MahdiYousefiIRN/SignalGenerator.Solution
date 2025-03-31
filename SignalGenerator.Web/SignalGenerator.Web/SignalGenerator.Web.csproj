@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Folder Include="Pages\StatusSignal\" />
+    <Folder Include="SignalHub\" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,32 @@
+@code {
+    [Parameter] public bool IsVisible { get; set; } = true;
+}
+
+@if (IsVisible)
+{
+    <div class="loading-pulse">
+        <div class="pulse"></div>
+    </div>
+}
+
+<style>
+    .loading-pulse {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+    }
+
+    .pulse {
+        width: 40px;
+        height: 40px;
+        background: #007bff;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    
+
+    }
+</style>

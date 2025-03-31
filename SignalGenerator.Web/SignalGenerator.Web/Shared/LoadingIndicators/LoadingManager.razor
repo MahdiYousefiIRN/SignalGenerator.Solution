@@ -1,0 +1,90 @@
+@using Microsoft.AspNetCore.Components
+
+<CascadingValue Value="this">
+    @ChildContent
+
+    @if (IsLoading)
+    {
+        switch (LoadingStyle)
+        {
+            case LoadingStyle.Ring:
+                <LoadingRing />
+                break;
+            case LoadingStyle.Wave:
+                <LoadingWave />
+                break;
+            case LoadingStyle.Bounce:
+                <LoadingBounce />
+                break;
+            case LoadingStyle.Dots:
+                <LoadingDots />
+                break;
+            case LoadingStyle.Pulse:
+                <LoadingPulse />
+                break;
+            case LoadingStyle.Circle:
+                <LoadingCircle />
+                break;
+            case LoadingStyle.Bar:
+                <LoadingBar />
+                break;
+            case LoadingStyle.Progress:
+                <LoadingProgress />
+                break;
+            default:
+                <LoadingSpinner />
+                break;
+        }
+    }
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public LoadingStyle LoadingStyle { get; set; } = LoadingStyle.Spinner;
+
+    private bool _isLoading;
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            if (_isLoading != value)
+            {
+                _isLoading = value;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public void Show() => IsLoading = true;
+    public void Hide() => IsLoading = false;
+
+    public async Task ShowAsync(Func<Task> action)
+    {
+        try
+        {
+            Show();
+            await action();
+        }
+        finally
+        {
+            Hide();
+        }
+    }
+
+    public async Task<T> ShowAsync<T>(Func<Task<T>> action)
+    {
+        try
+        {
+            Show();
+            return await action();
+        }
+        finally
+        {
+            Hide();
+        }
+    }
+} 

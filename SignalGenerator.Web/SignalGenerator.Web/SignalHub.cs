@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using SignalGenerator.Core.Models;
 
-namespace SignalGenerator.Web.SignalHub
+namespace SignalGenerator.Web
 {
     public class SignalHub : Hub
     {
