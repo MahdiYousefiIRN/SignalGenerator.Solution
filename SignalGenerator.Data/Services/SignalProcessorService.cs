@@ -16,8 +16,9 @@ namespace SignalGenerator.Data.Services
         // Dependency Injection برای SignalRProtocol و Logger
         public SignalProcessorService(SignalRProtocol signalRProtocol, ILogger<SignalProcessorService> logger)
         {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // بررسی مقدار null
+
             _signalRProtocol = signalRProtocol;
-            _logger = logger;
         }
 
         /// <summary>
@@ -91,6 +92,7 @@ namespace SignalGenerator.Data.Services
         {
             try
             {
+               
                 // ارسال سیگنال‌ها به پروتکل
                 bool result = await protocolCommunication.SendSignalsAsync(signalData);
                 if (!result)

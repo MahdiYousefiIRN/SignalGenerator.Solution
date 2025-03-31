@@ -21,7 +21,7 @@ namespace SignalGenerator.Protocols.Http
         public Http_Protocol(string baseUrl, ILogger<Http_Protocol> logger)
         {
             _baseUrl = baseUrl;
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // بررسی مقدار null
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(TimeoutSeconds)
@@ -77,12 +77,19 @@ namespace SignalGenerator.Protocols.Http
             try
             {
                 var url = $"{_baseUrl}/api/signals/post";
+                _logger.LogInformation("Sending signals to {Url}", url); // اضافه کردن لاگ برای بررسی URL
+
                 var response = await _retryPolicy.ExecuteAsync(async () =>
                     await _httpClient.PostAsJsonAsync(url, signalData));
 
                 response.EnsureSuccessStatusCode();
                 _logger.LogInformation("Successfully sent {Count} signals", signalData.Count);
                 return true;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "HttpRequestException: Error sending signals to {BaseUrl}", _baseUrl);
+                throw new ProtocolException("Failed to send signals", ex);
             }
             catch (Exception ex)
             {

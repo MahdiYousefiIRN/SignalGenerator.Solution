@@ -7,7 +7,7 @@
 @using SignalGenerator.Protocols.SignalR
 
 @inject SignalProcessorService SignalProcessorService
-@inject ILogger<SendSignalComponent> Logger
+@inject ILoggerFactory LoggerFactory
 
 <h2>Send Signal</h2>
 
@@ -43,6 +43,7 @@
         color: green;
         font-weight: bold;
     }
+
     .error-msg {
         color: red;
         font-weight: bold;
@@ -66,7 +67,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error occurred while sending signals.");
+            var logger = LoggerFactory.CreateLogger<SendSignalComponent>();
+            logger.LogError(ex, "Error occurred while sending signals.");
             SendResult = $"Error: {ex.Message}";
         }
     }
@@ -83,14 +85,14 @@
             DateTime timestamp = DateTime.UtcNow;
 
             var signal = new SignalData
-            {
-                Frequency = randomFrequency,
-                Power = randomPower,
-                Timestamp = timestamp,
-                CoilStatus = random.NextDouble() > 0.5,
-                DiscreteInputStatus = random.NextDouble() > 0.5,
-                ProtocolType = ProtocolType
-            };
+                {
+                    Frequency = randomFrequency,
+                    Power = randomPower,
+                    Timestamp = timestamp,
+                    CoilStatus = random.NextDouble() > 0.5,
+                    DiscreteInputStatus = random.NextDouble() > 0.5,
+                    ProtocolType = ProtocolType
+                };
 
             signals.Add(signal);
         }
@@ -100,18 +102,16 @@
 
     private IProtocolCommunication GetProtocol(string protocolType)
     {
-        var protocols = new Dictionary<string, Func<IProtocolCommunication>>(StringComparer.OrdinalIgnoreCase)
+        var loggerHttp = LoggerFactory.CreateLogger<Http_Protocol>();
+        var loggerModbus = LoggerFactory.CreateLogger<ModbusProtocol>();
+        var loggerSignalR = LoggerFactory.CreateLogger<SignalRProtocol>();
+
+        return protocolType.ToLower() switch
         {
-            { "http", () => new Http_Protocol("http://localhost:5000", Logger as ILogger<Http_Protocol>) },
-            { "modbus", () => new ModbusProtocol("192.168.1.100", 502, Logger as ILogger<ModbusProtocol>) },
-            { "signalar", () => new SignalRProtocol("http://localhost:5000/signalhub", Logger as ILogger<SignalRProtocol>) }
+            "http" => new Http_Protocol("http://localhost:5000", loggerHttp),
+            "modbus" => new ModbusProtocol("127.0.0.1", 502, loggerModbus),
+            "signalar" => new SignalRProtocol("http://localhost:5000/signalhub", loggerSignalR),
+            _ => throw new ArgumentException($"Invalid protocol type: {protocolType}")
         };
-
-        if (protocols.TryGetValue(protocolType, out var createProtocol))
-        {
-            return createProtocol();
-        }
-
-        throw new ArgumentException($"Invalid protocol type: {protocolType}");
     }
-} 
+}

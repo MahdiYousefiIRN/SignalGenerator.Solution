@@ -126,10 +126,15 @@ builder.Services.AddScoped<ISignalTestingService, SignalTestingService>();
 builder.Services.AddScoped<SignalRProtocol>(provider =>
 {
     var logger = provider.GetRequiredService<ILogger<SignalRProtocol>>();
-    var hubUrl = builder.Configuration["SignalR:HubUrl"];  
+    var hubUrl = builder.Configuration["ProtocolSettings:SignalR:HubUrl"];
     return new SignalRProtocol(hubUrl, logger);
 });
-
+// اضافه کردن سرویس‌های لاگ‌گیری
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.AddDebug();
+});
 
 // -------------------------
 // 🚀 Build Application

@@ -19,12 +19,20 @@ namespace SignalGenerator.Protocols.Modbus
 
         public ModbusProtocol(string ipAddress, int port, ILogger<ModbusProtocol> logger)
         {
-            _logger = logger;
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentNullException(nameof(ipAddress), "IP address cannot be null or empty.");
+
+            if (port <= 0)
+                throw new ArgumentOutOfRangeException(nameof(port), "Port must be greater than zero.");
+
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
             _modbusClient = new ModbusClient(ipAddress, port)
             {
                 ConnectionTimeout = ConnectionTimeoutMs
             };
         }
+
 
         private async Task EnsureConnectionAsync()
         {

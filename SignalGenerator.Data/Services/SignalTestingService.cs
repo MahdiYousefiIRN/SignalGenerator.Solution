@@ -16,7 +16,7 @@ namespace SignalGenerator.Data.Services
         public SignalTestingService(IProtocolDataStore dataStore, ILogger<SignalTestingService> logger)
         {
             _dataStore = dataStore;
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // بررسی مقدار null
         }
 
         /// <summary>
