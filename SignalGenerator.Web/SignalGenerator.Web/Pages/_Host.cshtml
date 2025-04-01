@@ -5,6 +5,7 @@
 <!DOCTYPE html>
 <html lang="fa">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Signal Generator</title>
@@ -17,5 +18,31 @@
     </app>
 
     <script src="_framework/blazor.server.js"></script>
+    <script src="js/chart.js"></script>
+    <script>
+        function renderSignalChart(labels, data) {
+            var ctx = document.getElementById('signalsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line', // نوع نمودار (می‌توانید آن را تغییر دهید)
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Signal Power',
+                        data: data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>

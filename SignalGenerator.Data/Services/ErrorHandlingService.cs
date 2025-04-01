@@ -1,46 +1,27 @@
+﻿using SignalGenerator.Data.Services;
+using SignalGenerator.Data.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using System.Runtime.Versioning;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace SignalGenerator.Data.Services
 {
     public class ErrorHandlingService : IErrorHandlingService
     {
         private readonly ILogger<ErrorHandlingService> _logger;
-        private readonly Dictionary<string, List<ErrorEvent>> _errorHistory;
-        private readonly object _lockObject = new object();
-        private readonly PerformanceCounter? _cpuCounter;
-        private readonly PerformanceCounter? _memoryCounter;
+        private readonly ConcurrentDictionary<string, List<ErrorEvent>> _errorHistory;
 
         public ErrorHandlingService(ILogger<ErrorHandlingService> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _errorHistory = new Dictionary<string, List<ErrorEvent>>();
-
-            if (OperatingSystem.IsWindows())
-            {
-                try
-                {
-                    _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                    _memoryCounter = new PerformanceCounter("Memory", "Available MBytes");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to initialize performance counters. System status monitoring will be limited.");
-                }
-            }
-            else
-            {
-                _logger.LogInformation("Performance counters are only supported on Windows. System status monitoring will be limited.");
-            }
+            _errorHistory = new ConcurrentDictionary<string, List<ErrorEvent>>();
         }
 
-        /// <summary>
-        /// Logs an error with the specified component and context.
-        /// </summary>
-        /// <param name="component">The component where the error occurred.</param>
-        /// <param name="ex">The exception that was thrown.</param>
-        /// <param name="context">Optional context information about the error.</param>
+        #region LogError and LogWarning
+
         public void LogError(string component, Exception ex, string? context = null)
         {
             if (string.IsNullOrEmpty(component))
@@ -48,39 +29,10 @@ namespace SignalGenerator.Data.Services
             if (ex == null)
                 throw new ArgumentNullException(nameof(ex));
 
-            var errorEvent = new ErrorEvent
-            {
-                Timestamp = DateTime.UtcNow,
-                Component = component,
-                ErrorMessage = ex.Message,
-                StackTrace = ex.StackTrace ?? string.Empty,
-                Context = context
-            };
-
-            lock (_lockObject)
-            {
-                if (!_errorHistory.ContainsKey(component))
-                {
-                    _errorHistory[component] = new List<ErrorEvent>();
-                }
-                _errorHistory[component].Add(errorEvent);
-
-                // Keep only last 1000 errors per component
-                if (_errorHistory[component].Count > 1000)
-                {
-                    _errorHistory[component].RemoveAt(0);
-                }
-            }
-
+            LogEvent(component, ex.Message, ex.StackTrace, context, isWarning: false);
             _logger.LogError(ex, "Error in {Component}: {Message}", component, ex.Message);
         }
 
-        /// <summary>
-        /// Logs a warning with the specified component and context.
-        /// </summary>
-        /// <param name="component">The component where the warning occurred.</param>
-        /// <param name="message">The warning message.</param>
-        /// <param name="context">Optional context information about the warning.</param>
         public void LogWarning(string component, string message, string? context = null)
         {
             if (string.IsNullOrEmpty(component))
@@ -88,89 +40,59 @@ namespace SignalGenerator.Data.Services
             if (string.IsNullOrEmpty(message))
                 throw new ArgumentException("Message cannot be null or empty", nameof(message));
 
-            var warningEvent = new ErrorEvent
+            LogEvent(component, message, null, context, isWarning: true);
+            _logger.LogWarning("Warning in {Component}: {Message}", component, message);
+        }
+
+        #endregion
+
+        #region Private Helper Methods
+
+        private void LogEvent(string component, string message, string? stackTrace, string? context, bool isWarning)
+        {
+            var errorEvent = new ErrorEvent
             {
                 Timestamp = DateTime.UtcNow,
                 Component = component,
                 ErrorMessage = message,
+                StackTrace = stackTrace ?? string.Empty,
                 Context = context,
-                IsWarning = true
+                IsWarning = isWarning
             };
 
-            lock (_lockObject)
+            _errorHistory.AddOrUpdate(component, new List<ErrorEvent> { errorEvent }, (key, oldList) =>
             {
-                if (!_errorHistory.ContainsKey(component))
-                {
-                    _errorHistory[component] = new List<ErrorEvent>();
-                }
-                _errorHistory[component].Add(warningEvent);
-            }
-
-            _logger.LogWarning("Warning in {Component}: {Message}", component, message);
+                oldList.Add(errorEvent);
+                // Keep only the latest 1000 error events per component
+                if (oldList.Count > 1000)
+                    oldList.RemoveAt(0);
+                return oldList;
+            });
         }
 
-        /// <summary>
-        /// Retrieves the current system status.
-        /// </summary>
-        /// <returns>A SystemStatus object containing the current system metrics.</returns>
+        #endregion
+
+        #region SystemStatus and Error Retrieval
+
         public SystemStatus GetSystemStatus()
         {
-            try
+            var status = new SystemStatus
             {
-                var status = new SystemStatus
-                {
-                    Timestamp = DateTime.UtcNow,
-                    ErrorCount = GetTotalErrorCount(),
-                    WarningCount = GetTotalWarningCount(),
-                    ComponentStatus = GetComponentStatus()
-                };
+                Timestamp = DateTime.UtcNow,
+                ErrorCount = GetTotalErrorCount(),
+                WarningCount = GetTotalWarningCount(),
+                ComponentStatus = GetComponentStatus()
+            };
 
-                if (OperatingSystem.IsWindows() && _cpuCounter != null && _memoryCounter != null)
-                {
-                    try
-                    {
-                        status.CpuUsage = _cpuCounter.NextValue();
-                        status.AvailableMemory = _memoryCounter.NextValue();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to read performance counters");
-                    }
-                }
-                else
-                {
-                    // Use alternative methods or set default values for non-Windows platforms
-                    status.CpuUsage = -1;
-                    status.AvailableMemory = -1;
-                }
-
-                return status;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting system status");
-                return new SystemStatus
-                {
-                    Timestamp = DateTime.UtcNow,
-                    ErrorCount = GetTotalErrorCount(),
-                    WarningCount = GetTotalWarningCount(),
-                    ComponentStatus = GetComponentStatus()
-                };
-            }
+            return status;
         }
 
-        /// <summary>
-        /// Retrieves recent errors for a specified component.
-        /// </summary>
-        /// <param name="component">Optional component to filter errors by.</param>
-        /// <param name="count">The number of recent errors to retrieve.</param>
-        /// <returns>A list of recent ErrorEvent objects.</returns>
-        public List<ErrorEvent> GetRecentErrors(string? component = null, int count = 100)
+        public async Task<List<ErrorEvent>> GetErrorsAsync(string? component = null, int count = 100)
         {
             if (count <= 0)
                 throw new ArgumentException("Count must be greater than zero", nameof(count));
 
-            lock (_lockObject)
+            return await Task.Run(() =>
             {
                 if (component != null)
                 {
@@ -184,59 +106,74 @@ namespace SignalGenerator.Data.Services
                     .OrderByDescending(e => e.Timestamp)
                     .Take(count)
                     .ToList();
-            }
+            });
         }
+
+        #endregion
+
+        #region Private Metrics Calculation
 
         private int GetTotalErrorCount()
         {
-            lock (_lockObject)
-            {
-                return _errorHistory.Values
-                    .SelectMany(e => e)
-                    .Count(e => !e.IsWarning);
-            }
+            return _errorHistory.Values
+                .SelectMany(e => e)
+                .Count(e => !e.IsWarning);
         }
 
         private int GetTotalWarningCount()
         {
-            lock (_lockObject)
-            {
-                return _errorHistory.Values
-                    .SelectMany(e => e)
-                    .Count(e => e.IsWarning);
-            }
+            return _errorHistory.Values
+                .SelectMany(e => e)
+                .Count(e => e.IsWarning);
         }
 
         private Dictionary<string, ComponentStatus> GetComponentStatus()
         {
-            lock (_lockObject)
-            {
-                return _errorHistory.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new ComponentStatus
-                    {
-                        ErrorCount = kvp.Value.Count(e => !e.IsWarning),
-                        WarningCount = kvp.Value.Count(e => e.IsWarning),
-                        LastError = kvp.Value.OrderByDescending(e => e.Timestamp).FirstOrDefault()
-                    }
-                );
-            }
+            return _errorHistory.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new ComponentStatus
+                {
+                    ErrorCount = kvp.Value.Count(e => !e.IsWarning),
+                    WarningCount = kvp.Value.Count(e => e.IsWarning),
+                    LastError = kvp.Value.OrderByDescending(e => e.Timestamp).FirstOrDefault()
+                }
+            );
         }
-    }
 
-    public interface IErrorHandlingService
-    {
-        void LogError(string component, Exception ex, string? context = null);
-        void LogWarning(string component, string message, string? context = null);
-        SystemStatus GetSystemStatus();
-        List<ErrorEvent> GetRecentErrors(string? component = null, int count = 100);
+
+
+
+        public async Task<List<ErrorEvent>> GetErrorsAsync(string? component = null, int count = 100, bool includeWarnings = false)
+        {
+            if (count <= 0)
+                throw new ArgumentException("Count must be greater than zero", nameof(count));
+
+            // در اینجا از Task.Yield برای تحریک عملیات غیرهم‌زمان استفاده نمی‌کنیم، زیرا خود متد async است.
+
+            // در صورتی که از ConcurrentDictionary استفاده می‌کنید، نیازی به قفل کردن نیست.
+            var errorList = component != null
+                ? _errorHistory.ContainsKey(component)
+                    ? _errorHistory[component].OrderByDescending(e => e.Timestamp).Take(count).ToList()
+                    : new List<ErrorEvent>()
+                : _errorHistory.Values
+                    .SelectMany(e => e)
+                    .Where(e => includeWarnings || !e.IsWarning)
+                    .OrderByDescending(e => e.Timestamp)
+                    .Take(count)
+                    .ToList();
+
+            return await Task.FromResult(errorList);  // اگر نیاز به اجرای یک عملیات غیرهم‌زمان دارید، از Task.FromResult برای برگرداندن نتیجه استفاده کنید.
+        }
+
+
+        #endregion
     }
 
     public class ErrorEvent
     {
         public DateTime Timestamp { get; set; }
-        public required string Component { get; set; }
-        public required string ErrorMessage { get; set; }
+        public string Component { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
         public string StackTrace { get; set; } = string.Empty;
         public string? Context { get; set; }
         public bool IsWarning { get; set; }
@@ -245,8 +182,6 @@ namespace SignalGenerator.Data.Services
     public class SystemStatus
     {
         public DateTime Timestamp { get; set; }
-        public float CpuUsage { get; set; }
-        public float AvailableMemory { get; set; }
         public int ErrorCount { get; set; }
         public int WarningCount { get; set; }
         public Dictionary<string, ComponentStatus> ComponentStatus { get; set; } = new();
@@ -258,4 +193,4 @@ namespace SignalGenerator.Data.Services
         public int WarningCount { get; set; }
         public ErrorEvent? LastError { get; set; }
     }
-} 
+}

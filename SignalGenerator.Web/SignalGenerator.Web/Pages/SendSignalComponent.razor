@@ -1,4 +1,4 @@
-@page "/send-signal"
+﻿@page "/send-signal"
 @using SignalGenerator.Core.Models
 @using SignalGenerator.Data.Interfaces
 @using SignalGenerator.Data.Services
@@ -8,6 +8,7 @@
 
 @inject SignalProcessorService SignalProcessorService
 @inject ILoggerFactory LoggerFactory
+@inject ILogger<SendSignalComponent> Logger
 
 <h2>Send Signal</h2>
 
@@ -43,11 +44,6 @@
         color: green;
         font-weight: bold;
     }
-
-    .error-msg {
-        color: red;
-        font-weight: bold;
-    }
 </style>
 
 @code {
@@ -67,8 +63,7 @@
         }
         catch (Exception ex)
         {
-            var logger = LoggerFactory.CreateLogger<SendSignalComponent>();
-            logger.LogError(ex, "Error occurred while sending signals.");
+            Logger.LogError(ex, "Error occurred while sending signals.");
             SendResult = $"Error: {ex.Message}";
         }
     }
@@ -102,15 +97,12 @@
 
     private IProtocolCommunication GetProtocol(string protocolType)
     {
-        var loggerHttp = LoggerFactory.CreateLogger<Http_Protocol>();
-        var loggerModbus = LoggerFactory.CreateLogger<ModbusProtocol>();
-        var loggerSignalR = LoggerFactory.CreateLogger<SignalRProtocol>();
-
+        // استفاده از ILoggerFactory برای ایجاد ILogger مناسب برای هر پروتکل
         return protocolType.ToLower() switch
         {
-            "http" => new Http_Protocol("http://localhost:5000", loggerHttp),
-            "modbus" => new ModbusProtocol("127.0.0.1", 502, loggerModbus),
-            "signalar" => new SignalRProtocol("http://localhost:5000/signalhub", loggerSignalR),
+            "http" => new Http_Protocol("http://localhost:5000", LoggerFactory.CreateLogger<Http_Protocol>()),
+            "modbus" => new ModbusProtocol("127.0.0.1", 502, LoggerFactory.CreateLogger<ModbusProtocol>()),
+            "signalar" => new SignalRProtocol("http://localhost:5000/signalhub", LoggerFactory.CreateLogger<SignalRProtocol>()),
             _ => throw new ArgumentException($"Invalid protocol type: {protocolType}")
         };
     }

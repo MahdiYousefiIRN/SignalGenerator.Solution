@@ -59,7 +59,7 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
 
-        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config)
+        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
             var signalsTcs = new TaskCompletionSource<List<SignalData>>();
 

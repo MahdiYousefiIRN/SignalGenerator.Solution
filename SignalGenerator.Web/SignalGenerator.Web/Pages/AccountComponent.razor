@@ -14,12 +14,12 @@
 <button @onclick="Login">Login</button>
 <button @onclick="Logout">Logout</button>
 
-@if (registrationMessage != null)
+@if (!string.IsNullOrEmpty(registrationMessage))
 {
     <p>@registrationMessage</p>
 }
 
-@if (loginMessage != null)
+@if (!string.IsNullOrEmpty(loginMessage))
 {
     <p>@loginMessage</p>
 }
@@ -30,13 +30,13 @@
 
     private async Task Register()
     {
-        // Implement registration logic here
+        // Simulate registration process (implement logic here)
         registrationMessage = "Registration logic not implemented.";
     }
 
     private async Task Login()
     {
-        // Implement login logic here
+        // Simulate login process (implement logic here)
         loginMessage = "Login logic not implemented.";
     }
 
@@ -45,4 +45,4 @@
         await SignInManager.SignOutAsync();
         Logger.LogInformation("User logged out.");
     }
-} 
+}

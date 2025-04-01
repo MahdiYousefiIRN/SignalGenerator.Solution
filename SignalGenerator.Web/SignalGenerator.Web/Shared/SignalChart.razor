@@ -1,0 +1,21 @@
+﻿
+@inject IJSRuntime JSRuntime
+
+<canvas @ref="ChartCanvas"></canvas>
+<h3>SignalChart</h3>
+@code {
+    private ElementReference ChartCanvas;
+    private DotNetObjectReference<SignalChart>? ChartRef;
+
+    [Parameter] public List<int> DataPoints { get; set; } = new();
+    [Parameter] public List<string> Labels { get; set; } = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ChartRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("renderSignalChart", ChartCanvas, DataPoints, Labels);
+        }
+    }
+}

@@ -10,7 +10,7 @@ namespace SignalGenerator.Data.Interfaces
         /// </summary>
         /// <param name="config">The configuration for receiving signals.</param>
         /// <returns>A list of SignalData objects.</returns>
-        Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config);
+        Task<List<SignalData>> ReceiveSignalsAsync(SignalData config);
 
         /// <summary>
         /// Sends a list of signals.

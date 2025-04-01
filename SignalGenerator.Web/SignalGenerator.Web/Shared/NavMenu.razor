@@ -1,49 +1,87 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Signal Generator</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+﻿@inherits LayoutComponentBase
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="send-signal">
-                <span class="oi oi-plus" aria-hidden="true"></span> Send Signal
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="get-signal">
-                <span class="oi oi-list" aria-hidden="true"></span> Get Signal
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="show-signal">
-                <span class="oi oi-eye" aria-hidden="true"></span> Show Signal
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="testing">
-                <span class="oi oi-check" aria-hidden="true"></span> Testing
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="export">
-                <span class="oi oi-data-transfer-download" aria-hidden="true"></span> Export
-            </NavLink>
-        </div>
+<div class="sidebar">
+    <div class="menu-header">
+        <button class="menu-toggle" @onclick="ToggleNavMenu">☰</button>
+        <span class="title">Signal Generator</span>
+    </div>
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="dashboard">
+            <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
+        </NavLink>
+    </div>
+
+    <nav class="nav-links @NavMenuCssClass" @onclick="ToggleNavMenu">
+        <NavLink class="nav-item" href="/home" Match="NavLinkMatch.All">
+            <span class="oi oi-home"></span> Home
+        </NavLink>
+        <NavLink class="nav-item" href="/send-signal">
+            <span class="oi oi-plus"></span> Send Signal
+        </NavLink>
+        <NavLink class="nav-item" href="/show-signal">
+            <span class="oi oi-eye"></span> Show Signal
+        </NavLink>
+        <NavLink class="nav-item" href="/signals">
+            <span class="oi oi-list"></span> Signals
+        </NavLink>
+        <NavLink class="nav-item" href="/testing">
+            <span class="oi oi-check"></span> Testing
+        </NavLink>
     </nav>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapsed" : null;
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
-} 
+}
+
+<style>
+    .sidebar {
+        width: 250px;
+        background: #343a40;
+        color: white;
+        height: 100vh;
+        position: fixed;
+    }
+
+    .menu-header {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #23272b;
+    }
+
+    .menu-toggle {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .title {
+        margin-left: 10px;
+        font-size: 18px;
+    }
+
+    .nav-links {
+        padding: 10px;
+    }
+
+    .nav-item {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 10px;
+        transition: background 0.3s;
+    }
+
+        .nav-item:hover {
+            background: #495057;
+        }
+
+    .collapsed {
+        display: none;
+    }
+</style>

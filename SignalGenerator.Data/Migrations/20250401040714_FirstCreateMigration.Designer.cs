@@ -12,8 +12,8 @@ using SignalGenerator.Data.Data;
 namespace SignalGenerator.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250331181601_firstmigration")]
-    partial class firstmigration
+    [Migration("20250401040714_FirstCreateMigration")]
+    partial class FirstCreateMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -181,11 +181,23 @@ namespace SignalGenerator.Data.Migrations
                     b.Property<bool>("CoilStatus")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("DiscreteInputStatus")
                         .HasColumnType("bit");
 
                     b.Property<double>("Frequency")
                         .HasColumnType("float");
+
+                    b.Property<int>("IntervalMs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxFrequency")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinFrequency")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -197,6 +209,9 @@ namespace SignalGenerator.Data.Migrations
                     b.Property<string>("ProtocolType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SignalCount")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
@@ -292,44 +307,6 @@ namespace SignalGenerator.Data.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("SignalGenerator.Data.Models.SignalConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Interval")
-                        .HasColumnType("int");
-
-                    b.Property<int>("IntervalMs")
-                        .HasColumnType("int");
-
-                    b.Property<double>("MaxFrequency")
-                        .HasColumnType("float");
-
-                    b.Property<double>("MinFrequency")
-                        .HasColumnType("float");
-
-                    b.Property<string>("ProtocolType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("SignalCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SignalConfigs");
                 });
 
             modelBuilder.Entity("SignalGenerator.Data.Models.SignalGroup", b =>

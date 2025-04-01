@@ -17,8 +17,8 @@ namespace SignalGenerator.Data.Services
         public SignalProcessorService(SignalRProtocol signalRProtocol, ILogger<SignalProcessorService> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // بررسی مقدار null
+            _signalRProtocol = signalRProtocol ?? throw new ArgumentNullException(nameof(signalRProtocol)); // بررسی مقدار null
 
-            _signalRProtocol = signalRProtocol;
         }
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace SignalGenerator.Data.Services
         /// </summary>
         /// <param name="config">The configuration for signal generation.</param>
         /// <param name="protocolCommunication">The protocol communication interface to use.</param>
-        public async Task StartSignalGeneration(SignalConfig config, IProtocolCommunication protocolCommunication)
+        public async Task StartSignalGeneration(SignalData config, IProtocolCommunication protocolCommunication)
         {
             try
             {
@@ -59,7 +59,7 @@ namespace SignalGenerator.Data.Services
         /// <param name="config">The configuration for retrieving signals.</param>
         /// <param name="protocolCommunication">The protocol communication interface to use.</param>
         /// <returns>A list of SignalData objects.</returns>
-        public async Task<List<SignalData>> GetSignalsAsync(SignalConfig config, IProtocolCommunication protocolCommunication)
+        public async Task<List<SignalData>> GetSignalsAsync(SignalData config, IProtocolCommunication protocolCommunication)
         {
             try
             {

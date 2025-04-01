@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SignalGenerator.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class firstmigration : Migration
+    public partial class FirstCreateMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -57,26 +57,6 @@ namespace SignalGenerator.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SignalConfigs",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SignalCount = table.Column<int>(type: "int", nullable: false),
-                    MinFrequency = table.Column<double>(type: "float", nullable: false),
-                    MaxFrequency = table.Column<double>(type: "float", nullable: false),
-                    Interval = table.Column<int>(type: "int", nullable: false),
-                    IntervalMs = table.Column<int>(type: "int", nullable: false),
-                    ProtocolType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SignalConfigs", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Signals",
                 columns: table => new
                 {
@@ -87,7 +67,12 @@ namespace SignalGenerator.Data.Migrations
                     Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ProtocolType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CoilStatus = table.Column<bool>(type: "bit", nullable: false),
-                    DiscreteInputStatus = table.Column<bool>(type: "bit", nullable: false)
+                    DiscreteInputStatus = table.Column<bool>(type: "bit", nullable: false),
+                    SignalCount = table.Column<int>(type: "int", nullable: false),
+                    MaxFrequency = table.Column<int>(type: "int", nullable: false),
+                    MinFrequency = table.Column<int>(type: "int", nullable: false),
+                    IntervalMs = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -313,9 +298,6 @@ namespace SignalGenerator.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
-
-            migrationBuilder.DropTable(
-                name: "SignalConfigs");
 
             migrationBuilder.DropTable(
                 name: "SignalGroupMembers");

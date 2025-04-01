@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using SignalGenerator.Data.Models;
 using SignalGenerator.Data.Interfaces;
+using SignalGenerator.Core.Models;
 
 namespace SignalGenerator.Data.Services
 {
@@ -88,12 +89,12 @@ namespace SignalGenerator.Data.Services
             if (string.IsNullOrEmpty(protocol))
                 throw new ArgumentException("Protocol cannot be null or empty", nameof(protocol));
 
-            var protocolConfig = new SignalConfig
+            var protocolConfig = new SignalData
             {
                 SignalCount = result.Config.SignalCount,
-                MinFrequency = result.Config.MinFrequency,
-                MaxFrequency = result.Config.MaxFrequency,
-                Interval = result.Config.Interval,
+                MinFrequency = (int)result.Config.MinFrequency,
+                MaxFrequency = (int)result.Config.MaxFrequency,
+                IntervalMs = result.Config.Interval,
                 ProtocolType = protocol
             };
 
@@ -113,12 +114,12 @@ namespace SignalGenerator.Data.Services
         /// <param name="result">The EvaluationResult object to update with the results.</param>
         private async Task PerformLoadTestAsync(EvaluationResult result)
         {
-            var loadTestConfig = new SignalConfig
+            var loadTestConfig = new SignalData
             {
                 SignalCount = result.Config.SignalCount * 5, // 5x normal load
-                MinFrequency = result.Config.MinFrequency,
-                MaxFrequency = result.Config.MaxFrequency,
-                Interval = result.Config.Interval / 2, // Faster interval
+                MinFrequency = (int)result.Config.MinFrequency,
+                MaxFrequency = (int)result.Config.MaxFrequency,
+                IntervalMs = result.Config.Interval / 2, // Faster interval
                 ProtocolType = result.Config.Protocols.First()
             };
 
@@ -254,13 +255,5 @@ namespace SignalGenerator.Data.Services
         public int TotalCalls { get; set; }
     }
 
-    public class PerformanceMetric
-    {
-        public required string Operation { get; set; }
-        public long TotalDuration { get; set; }
-        public long MaxDuration { get; set; }
-        public long MinDuration { get; set; }
-        public int TotalCalls { get; set; }
-        public long AverageDuration { get; set; }
-    }
+    
 } 

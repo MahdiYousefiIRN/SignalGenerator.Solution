@@ -70,7 +70,7 @@ namespace SignalGenerator.Protocols.Modbus
             }
         }
 
-        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config)
+        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
             try
             {

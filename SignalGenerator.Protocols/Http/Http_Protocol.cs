@@ -39,7 +39,7 @@ namespace SignalGenerator.Protocols.Http
                     });
         }
 
-        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalConfig config)
+        public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
             try
             {
@@ -71,29 +71,38 @@ namespace SignalGenerator.Protocols.Http
             if (signalData == null || !signalData.Any())
             {
                 _logger.LogWarning("Attempted to send empty signal data");
+                Console.WriteLine("⚠ Warning: Attempted to send empty signal data");
                 return false;
             }
 
             try
             {
                 var url = $"{_baseUrl}/api/signals/post";
-                _logger.LogInformation("Sending signals to {Url}", url); // اضافه کردن لاگ برای بررسی URL
+                Console.WriteLine($"🔄 Sending signals to: {url}");
 
                 var response = await _retryPolicy.ExecuteAsync(async () =>
                     await _httpClient.PostAsJsonAsync(url, signalData));
 
-                response.EnsureSuccessStatusCode();
-                _logger.LogInformation("Successfully sent {Count} signals", signalData.Count);
-                return true;
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorMessage = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"❌ Failed to send signals. Status Code: {response.StatusCode}, Error: {errorMessage}");
+                }
+                else
+                {
+                    Console.WriteLine($"✅ Successfully sent {signalData.Count} signals");
+                }
+
+                return response.IsSuccessStatusCode;
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "HttpRequestException: Error sending signals to {BaseUrl}", _baseUrl);
+                Console.WriteLine($"🚨 HttpRequestException: {ex.Message}");
                 throw new ProtocolException("Failed to send signals", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending signals to {BaseUrl}", _baseUrl);
+                Console.WriteLine($"❌ Error: {ex.Message}");
                 throw new ProtocolException("Failed to send signals", ex);
             }
         }

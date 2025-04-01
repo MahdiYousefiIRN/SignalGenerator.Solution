@@ -1,16 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Logging;
 using SignalGenerator.Data.Data;
 using SignalGenerator.Data.Interfaces;
 using SignalGenerator.Data.Services;
 using SignalGenerator.Protocols.Http;
 using SignalGenerator.Protocols.Modbus;
-using SignalGenerator.Protocols.SignalR; // اضافه کردن SignalRProtocol
+using SignalGenerator.Protocols.SignalR;
 using SignalGenerator.Data.Models;
 using System.IO.Compression;
 using SignalGenerator.Web;
+using SignalGenerator.Web.Services;
+using SignalGenerator.Web.Data.Interface;
+using SignalGenerator.Web.Data.Services;
+using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +48,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
 
 // تنظیم پروتکل HTTP
 var httpProtocolBaseUrl = builder.Configuration["HttpProtocol:BaseUrl"] ?? "http://localhost:5000";
-builder.Services.AddTransient<IProtocolCommunication, Http_Protocol>(sp =>
+builder.Services.AddScoped<IProtocolCommunication, Http_Protocol>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<Http_Protocol>>();
     return new Http_Protocol(httpProtocolBaseUrl, logger);
@@ -56,14 +59,14 @@ var modbusSettings = builder.Configuration.GetSection("ProtocolSettings:Modbus")
 var modbusIp = modbusSettings["DefaultIp"] ?? "127.0.0.1";
 var modbusPort = int.Parse(modbusSettings["DefaultPort"] ?? "502");
 
-builder.Services.AddTransient<IProtocolCommunication, ModbusProtocol>(sp =>
+builder.Services.AddScoped<IProtocolCommunication, ModbusProtocol>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<ModbusProtocol>>();
     return new ModbusProtocol(modbusIp, modbusPort, logger);
 });
 
-// تنظیم پروتکل SignalR (اضافه کردن این بخش)
-builder.Services.AddTransient<IProtocolCommunication, SignalRProtocol>(sp =>
+// تنظیم پروتکل SignalR
+builder.Services.AddScoped<SignalRProtocol>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<SignalRProtocol>>();
     var connectionString = builder.Configuration["SignalR:ConnectionString"];
@@ -80,6 +83,7 @@ builder.Services.AddSignalR(options =>
 })
 .AddMessagePackProtocol();
 builder.Services.AddServerSideBlazor();
+
 // -------------------------
 // 📦 Response Compression
 // -------------------------
@@ -120,21 +124,9 @@ builder.Services.AddScoped<SignalProcessorService>();
 builder.Services.AddScoped<IDataExportService, DataExportService>();
 builder.Services.AddScoped<IErrorHandlingService, ErrorHandlingService>();
 builder.Services.AddScoped<ISystemEvaluationService, SystemEvaluationService>();
-builder.Services.AddScoped<ISignalTestingService, SignalTestingService>();
-
-// اصلاح: فقط یک بار SignalRProtocol را ثبت کنیم
-builder.Services.AddScoped<SignalRProtocol>(provider =>
-{
-    var logger = provider.GetRequiredService<ILogger<SignalRProtocol>>();
-    var hubUrl = builder.Configuration["ProtocolSettings:SignalR:HubUrl"];
-    return new SignalRProtocol(hubUrl, logger);
-});
-// اضافه کردن سرویس‌های لاگ‌گیری
-builder.Services.AddLogging(logging =>
-{
-    logging.AddConsole();
-    logging.AddDebug();
-});
+builder.Services.AddScoped<ISignalTestingService, SignalTestingService>(); // ثبت ISignalTestingService
+builder.Services.AddScoped<AppState>(); // ثبت AppState در DI
+builder.Services.AddScoped<ISignalDataService, SignalDataService>();
 
 // -------------------------
 // 🚀 Build Application

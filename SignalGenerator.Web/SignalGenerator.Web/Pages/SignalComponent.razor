@@ -56,20 +56,32 @@ else
                 return;
             }
 
-            var config = new SignalConfig
+            var config = new SignalData
                 {
-                    UserId = userId,
+                    Id = userId,
                     CreatedAt = DateTime.UtcNow,
                     SignalCount = 10,
                     MinFrequency = 45,
                     MaxFrequency = 65,
-                    Interval = 5,
-                    IntervalMs = 5 * 1000, // محاسبه صحیح IntervalMs
+                    IntervalMs = 5 * 1000,
                     ProtocolType = "DefaultProtocol"
                 };
 
             signals = await SignalProcessor.GetSignalsAsync(config, ProtocolCommunication);
             await DataStore.SaveSignalsAsync(signals);
+
+            // ارسال سیگنال‌ها به API
+            using var httpClient = new HttpClient();
+            var response = await httpClient.PostAsJsonAsync("http://localhost:5000/api/signals/post", signals);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Failed to send signals. Status Code: {response.StatusCode}";
+            }
+            else
+            {
+                errorMessage = "Signals sent successfully!";
+            }
         }
         catch (Exception ex)
         {

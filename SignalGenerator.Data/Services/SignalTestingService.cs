@@ -24,7 +24,7 @@ namespace SignalGenerator.Data.Services
         /// </summary>
         /// <param name="config">The configuration for the signal test.</param>
         /// <returns>A TestResult object containing the results of the test.</returns>
-        public async Task<TestResult> TestSignalTransmissionAsync(SignalConfig config)
+        public async Task<TestResult> TestSignalTransmissionAsync(SignalData config)
         {
             var result = new TestResult { StartTime = DateTime.UtcNow, Config = config };
             try
@@ -58,7 +58,7 @@ namespace SignalGenerator.Data.Services
         /// </summary>
         /// <param name="config">The configuration for generating signals.</param>
         /// <returns>A list of generated SignalData objects.</returns>
-        private async Task<List<SignalData>> GenerateTestSignalsAsync(SignalConfig config)
+        private async Task<List<SignalData>> GenerateTestSignalsAsync(SignalData config)
         {
             return await Task.Run(() => Enumerable.Range(0, config.SignalCount).Select(_ => new SignalData
             {

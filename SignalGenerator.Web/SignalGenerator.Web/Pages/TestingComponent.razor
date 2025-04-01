@@ -1,10 +1,8 @@
-@page "/testing"
-@using SignalGenerator.Data.Interfaces
-@using SignalGenerator.Data.Services
-
+﻿@page "/testing"
+@using SignalGenerator.Core.Models
+@using System.ComponentModel.DataAnnotations
 @inject ISignalTestingService TestingService
 @inject IErrorHandlingService ErrorHandlingService
-@inject ISystemEvaluationService EvaluationService
 @inject ILogger<TestingComponent> Logger
 
 <h3>Testing Management</h3>
@@ -12,7 +10,6 @@
 <button @onclick="TestSignalTransmission">Test Signal Transmission</button>
 <button @onclick="GetTestStatus">Get Test Status</button>
 <button @onclick="GetErrors">Get Errors</button>
-<button @onclick="EvaluateSystem">Evaluate System</button>
 
 @if (!string.IsNullOrEmpty(message))
 {
@@ -24,29 +21,81 @@
 
     private async Task TestSignalTransmission()
     {
-        // Implement test signal transmission logic here
-        message = "Test signal transmission logic not implemented.";
-        Logger.LogInformation("Test signal transmission logic executed.");
+        try
+        {
+            // ایجاد نمونه از SignalData و تعیین مقدار ProtocolType
+            var signalData = new SignalData
+                {
+                // مقادیر مناسب برای تست
+                    Name = "Test Signal",
+                    Frequency = 50,   // مطابق با قوانین Range
+                    Power = 75,       // مطابق با قوانین Range
+                    Timestamp = DateTime.UtcNow,
+                    ProtocolType = "TCP",  // باید مقداردهی شود (required)
+                    CoilStatus = true,
+                    DiscreteInputStatus = true,
+                    SignalCount = 10,    // مطابق با قوانین Range
+                    MaxFrequency = 70,   // مطابق با قوانین Range
+                    MinFrequency = 40,   // مطابق با قوانین Range
+                    IntervalMs = 100,    // مقدار معقول
+                    CreatedAt = DateTime.UtcNow
+                };
+
+            // انجام اعتبارسنجی
+            var validationResults = new List<ValidationResult>();
+            var validationContext = new ValidationContext(signalData);
+            if (!Validator.TryValidateObject(signalData, validationContext, validationResults, true))
+            {
+                // اگر مدل معتبر نیست، پیام خطاها را لاگ کنید
+                foreach (var validationResult in validationResults)
+                {
+                    Logger.LogError("Validation failed: " + validationResult.ErrorMessage);
+                }
+                message = "Signal data is invalid.";
+                return; // بازگشت از متد اگر داده‌ها معتبر نباشند
+            }
+
+            // ارسال سیگنال معتبر برای تست
+            var result = await TestingService.TestSignalTransmissionAsync(signalData);
+            message = result.Success ? "Signal transmission test successful." : "Signal transmission test failed.";
+            Logger.LogInformation("Test signal transmission logic executed successfully.");
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Error occurred while testing signal transmission.");
+        }
     }
 
     private async Task GetTestStatus()
     {
-        // Implement get test status logic here
-        message = "Get test status logic not implemented.";
-        Logger.LogInformation("Get test status logic executed.");
+        try
+        {
+            // دریافت وضعیت تست
+            var status = await TestingService.GetTestStatusAsync();
+            message = status ?? "Test status is unavailable.";
+            Logger.LogInformation("Test status fetched successfully.");
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Error occurred while fetching test status.");
+        }
     }
 
     private async Task GetErrors()
     {
-        // Implement get errors logic here
-        message = "Get errors logic not implemented.";
-        Logger.LogInformation("Get errors logic executed.");
+        try
+        {
+            // دریافت خطاها
+            var errors = await ErrorHandlingService.GetErrorsAsync();
+            message = errors.Any() ? string.Join(", ", errors) : "No errors found.";
+            Logger.LogInformation("Errors fetched successfully.");
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Error occurred while fetching errors.");
+        }
     }
-
-    private async Task EvaluateSystem()
-    {
-        // Implement evaluate system logic here
-        message = "Evaluate system logic not implemented.";
-        Logger.LogInformation("Evaluate system logic executed.");
-    }
-} 
+}

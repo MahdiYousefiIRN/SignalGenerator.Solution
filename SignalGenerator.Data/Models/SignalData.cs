@@ -41,6 +41,14 @@ namespace SignalGenerator.Core.Models
         /// A boolean indicating the status of the discrete input.
         /// </summary>
         public bool DiscreteInputStatus { get; set; }
-   
+        /// <summary>
+        /// The number of signals to generate.
+        /// </summary>
+        [Range(1, 1000, ErrorMessage = "Signal count must be between 1 and 1000.")]
+        public int SignalCount { get; set; }
+        public int MaxFrequency { get;  set; }
+        public int MinFrequency { get;  set; }
+        public int IntervalMs { get;  set; }
+        public DateTime CreatedAt { get; set; }
     }
 } 

@@ -1,6 +1,4 @@
 @page "/show-signal"
-
-@using Microsoft.AspNetCore.SignalR.Client
 @using SignalGenerator.Core.Models
 @inject NavigationManager Navigation
 
@@ -74,4 +72,4 @@ else
     {
         await _hubConnection.StopAsync();
     }
-} 
+}

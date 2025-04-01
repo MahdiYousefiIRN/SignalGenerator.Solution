@@ -1,0 +1,97 @@
+﻿@page "/dashboard"
+@using SignalGenerator.Core.Models
+@using SignalGenerator.Web.Data.Interface
+@inject ISignalDataService SignalDataService
+@inject ILogger<Dashboard> Logger
+@inject IJSRuntime JS
+
+<h2>📊 Dashboard - Signal Overview</h2>
+
+@if (IsLoading)
+{
+    <LoadingIndicator />
+}
+else
+{
+    <div class="dashboard-container">
+        <div class="stat-card">
+            <h3>Total Signals Sent</h3>
+            <p>@TotalSignals</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Active Protocols</h3>
+            <ul>
+                @foreach (var protocol in ActiveProtocols)
+                {
+                    <li>@protocol</li>
+                }
+            </ul>
+        </div>
+
+        <div class="latest-signals">
+            <h3>Latest Signals</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Frequency</th>
+                        <th>Power</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var signal in LatestSignals)
+                    {
+                        <tr>
+                            <td>@signal.Frequency</td>
+                            <td>@signal.Power</td>
+                            <td>@signal.Timestamp</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="signalsChart"></canvas>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsLoading = true;
+    private int TotalSignals = 0;
+    private List<string> ActiveProtocols = new();
+    private List<SignalData> LatestSignals = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            TotalSignals = await SignalDataService.GetTotalSignalsAsync();
+            ActiveProtocols = await SignalDataService.GetActiveProtocolsAsync();
+            LatestSignals = await SignalDataService.GetLatestSignalsAsync(5);
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading dashboard data");
+        }
+    }
+
+    private async Task RenderChart()
+    {
+        var labels = LatestSignals.Select(s => s.Timestamp.ToString("HH:mm:ss")).ToList();
+        var data = LatestSignals.Select(s => s.Power).ToList();
+        await JS.InvokeVoidAsync("renderSignalChart", labels, data);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && LatestSignals.Any())
+        {
+            await RenderChart();
+        }
+    }
+}

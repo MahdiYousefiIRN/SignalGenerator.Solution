@@ -13,7 +13,6 @@ namespace SignalGenerator.Data.Data
         }
 
         public DbSet<SignalData> Signals { get; set; }
-        public DbSet<SignalConfig> SignalConfigs { get; set; }
         public DbSet<SignalGroup> SignalGroups { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -31,7 +30,7 @@ namespace SignalGenerator.Data.Data
             });
 
             // Configure SignalConfig
-            builder.Entity<SignalConfig>(entity =>
+            builder.Entity<SignalData>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.SignalCount).IsRequired();

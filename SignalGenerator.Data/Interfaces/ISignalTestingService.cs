@@ -1,17 +1,18 @@
-﻿using SignalGenerator.Data.Models;
+﻿using SignalGenerator.Core.Models;
+using SignalGenerator.Data.Models;
 
 namespace SignalGenerator.Data.Interfaces
 {
     public interface ISignalTestingService
     {
-        Task<TestResult> TestSignalTransmissionAsync(SignalConfig config);
+        Task<TestResult> TestSignalTransmissionAsync(SignalData config);
     }
 
     public class TestResult
     {
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        public required SignalConfig Config { get; set; }
+        public required SignalData Config { get; set; }
         public bool Success { get; set; }
         public string Error { get; set; } = string.Empty;
         public string ErrorDetails { get; set; } = string.Empty;
