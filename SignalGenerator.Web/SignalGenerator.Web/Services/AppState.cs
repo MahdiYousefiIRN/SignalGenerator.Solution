@@ -1,24 +1,22 @@
 ﻿namespace SignalGenerator.Web.Services
 {
-    using System;
-    using System.Threading.Tasks;
-
     public class AppState
     {
         public event Func<Task>? OnLoadingStart;
         public event Func<Task>? OnLoadingEnd;
 
-        public async Task StartLoading()
-        {
-            if (OnLoadingStart != null)
-                await OnLoadingStart.Invoke();
-        }
+        public async Task StartLoading() => await InvokeAsync(OnLoadingStart);
+        public async Task EndLoading() => await InvokeAsync(OnLoadingEnd);
 
-        public async Task EndLoading()
+        private async Task InvokeAsync(Func<Task>? eventHandler)
         {
-            if (OnLoadingEnd != null)
-                await OnLoadingEnd.Invoke();
+            if (eventHandler != null)
+            {
+                foreach (var handler in eventHandler.GetInvocationList().Cast<Func<Task>>())
+                {
+                    await handler.Invoke();
+                }
+            }
         }
     }
-
 }

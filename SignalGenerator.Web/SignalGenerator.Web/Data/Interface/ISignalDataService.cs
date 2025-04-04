@@ -1,6 +1,6 @@
 ﻿namespace SignalGenerator.Web.Data.Interface
 {
-    using SignalGenerator.Core.Models;
+    using SignalGenerator.Data.Models;
     using System.Collections.Generic;
     using System.Threading.Tasks;
 

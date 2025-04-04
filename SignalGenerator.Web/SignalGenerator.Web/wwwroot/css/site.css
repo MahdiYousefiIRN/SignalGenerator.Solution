@@ -1,33 +1,114 @@
+﻿/* ✅ Import Global Styles */
 @import url('dashboard.css');
 
+/* ✅ تنظیم اندازه‌ی فونت برای نمایش در دستگاه‌های مختلف */
 html {
-  font-size: 14px;
+    font-size: 14px;
 }
 
+/* در نمایشگرهای بزرگتر از 768px، اندازه‌ی فونت را افزایش دهید */
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+    html {
+        font-size: 16px;
+    }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+/* ✅ بهبود استایل‌های مربوط به فوکوس در فرم‌ها و دکمه‌ها */
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
+/* ✅ تنظیم موقعیت و ارتفاع حداقلی صفحه */
 html {
-  position: relative;
-  min-height: 100%;
+    position: relative;
+    min-height: 100%;
 }
 
+/* ✅ تنظیم فاصله‌ی پایین صفحه برای جلوگیری از برخورد با فوتر */
 body {
-  margin-bottom: 60px;
+    margin-bottom: 60px;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+/* ✅ استایل‌دهی به placeholder برای نمایش متون فرم به‌صورت راست‌چین */
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+/* هنگام فوکوس روی فرم، جهت متن placeholder را به چپ تغییر دهید */
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
+    text-align: start;
 }
+
+/* ✅ بهبود دکمه‌ها برای تمیزتر شدن UI */
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+/* ✅ استایل‌دهی به دکمه‌های ثانویه */
+.btn-secondary {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    .btn-secondary:hover {
+        background-color: #1e7e34;
+    }
+
+/* ✅ استایل‌دهی به دکمه‌های خطر */
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    .btn-danger:hover {
+        background-color: #bd2130;
+    }
+
+/* ✅ استایل برای نمایش پیام‌های هشدار و اطلاع‌رسانی */
+.message-box {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-left: 5px solid #007bff;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+/* ✅ تنظیم استایل ورودی‌ها برای خوانایی بهتر */
+.form-control {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s ease;
+}
+
+    .form-control:focus {
+        border-color: #007bff;
+    }

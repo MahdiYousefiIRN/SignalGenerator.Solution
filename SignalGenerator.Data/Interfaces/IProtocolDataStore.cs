@@ -1,4 +1,4 @@
-﻿using SignalGenerator.Core.Models;
+﻿
 using SignalGenerator.Data.Models;
 using System;
 using System.Collections.Generic;

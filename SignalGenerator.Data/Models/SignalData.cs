@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SignalGenerator.Core.Models
+namespace SignalGenerator.Data.Models
 {
     public class SignalData
     {

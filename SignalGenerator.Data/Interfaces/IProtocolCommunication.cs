@@ -1,4 +1,3 @@
-using SignalGenerator.Core.Models;
 using SignalGenerator.Data.Models;
 
 namespace SignalGenerator.Data.Interfaces

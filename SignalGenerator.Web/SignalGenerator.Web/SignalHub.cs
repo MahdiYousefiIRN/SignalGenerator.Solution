@@ -1,140 +1,132 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using SignalGenerator.Data.Models;
 using Microsoft.Extensions.Logging;
+using SignalGenerator.Data.Models;
 using System.Collections.Concurrent;
-using SignalGenerator.Core.Models;
+using System.Threading.Tasks;
+using System;
 
 namespace SignalGenerator.Web
 {
     public class SignalHub : Hub
     {
         private readonly ILogger<SignalHub> _logger;
-        private static readonly ConcurrentDictionary<string, string> _userGroups = new();
-        private static readonly ConcurrentDictionary<string, DateTime> _lastSignalTimes = new();
 
+        // ذخیره گروه‌های کاربران به‌صورت ConcurrentDictionary
+        private static readonly ConcurrentDictionary<string, string> _userGroups = new();
+
+        // سازنده برای ثبت Logger
         public SignalHub(ILogger<SignalHub> logger)
         {
             _logger = logger;
         }
 
+        // وقتی یک کلاینت به سرور متصل می‌شود
         public override async Task OnConnectedAsync()
         {
-            try
-            {
-                _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
-                await base.OnConnectedAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in OnConnectedAsync for client {ConnectionId}", Context.ConnectionId);
-                throw;
-            }
+            _logger.LogInformation($"Client connected: {Context.ConnectionId}");
+            await base.OnConnectedAsync();
         }
 
+        // وقتی یک کلاینت از سرور قطع می‌شود
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            try
-            {
-                _logger.LogInformation("Client disconnected: {ConnectionId}", Context.ConnectionId);
-                _userGroups.TryRemove(Context.ConnectionId, out _);
-                await base.OnDisconnectedAsync(exception);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in OnDisconnectedAsync for client {ConnectionId}", Context.ConnectionId);
-                throw;
-            }
+            _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
+            _userGroups.TryRemove(Context.ConnectionId, out _); // حذف از گروه‌ها
+            await base.OnDisconnectedAsync(exception);
         }
 
+        // ارسال سیگنال به تمامی کلاینت‌ها
         public async Task SendSignal(SignalData signal)
         {
+            if (signal == null)
+            {
+                _logger.LogWarning($"Null signal received from {Context.ConnectionId}");
+                return;
+            }
+
             try
             {
-                if (signal == null)
-                {
-                    _logger.LogWarning("Attempted to send null signal from client {ConnectionId}", Context.ConnectionId);
-                    return;
-                }
-
-                _lastSignalTimes.AddOrUpdate(Context.ConnectionId, DateTime.UtcNow, (_, __) => DateTime.UtcNow);
-
-                await Clients.All.SendAsync("ReceiveSignal", signal);
-                _logger.LogInformation("Signal sent to all clients from {ConnectionId}", Context.ConnectionId);
+                // ارسال سیگنال به تمامی کلاینت‌ها
+                await Clients.All.SendAsync("ReceiveSignals", signal);
+                _logger.LogInformation($"Signal sent to all clients from {Context.ConnectionId}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending signal from client {ConnectionId}", Context.ConnectionId);
-                throw;
+                _logger.LogError($"Error sending signal to clients: {ex.Message}", ex);
             }
         }
 
-        public async Task SendSignalToClient(string connectionId, SignalData signal)
-        {
-            try
-            {
-                if (signal == null)
-                {
-                    _logger.LogWarning("Attempted to send null signal to client {TargetConnectionId}", connectionId);
-                    return;
-                }
-
-                await Clients.Client(connectionId).SendAsync("ReceiveSignal", signal);
-                _logger.LogInformation("Signal sent to client {TargetConnectionId} from {SourceConnectionId}", connectionId, Context.ConnectionId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending signal to client {TargetConnectionId} from {SourceConnectionId}", connectionId, Context.ConnectionId);
-                throw;
-            }
-        }
-
+        // ارسال سیگنال به گروه خاصی از کاربران
         public async Task SendSignalToGroup(string groupName, SignalData signal)
         {
+            if (signal == null)
+            {
+                _logger.LogWarning($"Null signal received for group {groupName} from {Context.ConnectionId}");
+                return;
+            }
+
             try
             {
-                if (signal == null)
-                {
-                    _logger.LogWarning("Attempted to send null signal to group {GroupName}", groupName);
-                    return;
-                }
-
-                await Clients.Group(groupName).SendAsync("ReceiveSignal", signal);
-                _logger.LogInformation("Signal sent to group {GroupName} from {ConnectionId}", groupName, Context.ConnectionId);
+                // ارسال سیگنال به گروه خاص
+                await Clients.Group(groupName).SendAsync("ReceiveSignals", signal);
+                _logger.LogInformation($"Signal sent to group {groupName} from {Context.ConnectionId}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending signal to group {GroupName} from {ConnectionId}", groupName, Context.ConnectionId);
-                throw;
+                _logger.LogError($"Error sending signal to group {groupName}: {ex.Message}", ex);
             }
         }
 
+        // اضافه کردن کلاینت به گروه خاص
         public async Task AddToGroup(string groupName)
         {
             try
             {
+                // اضافه کردن به گروه
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                _userGroups.AddOrUpdate(Context.ConnectionId, groupName, (_, __) => groupName);
-                _logger.LogInformation("Client {ConnectionId} added to group {GroupName}", Context.ConnectionId, groupName);
+                _userGroups[Context.ConnectionId] = groupName;  // ذخیره گروه در دیکشنری
+                _logger.LogInformation($"Client {Context.ConnectionId} added to group {groupName}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding client {ConnectionId} to group {GroupName}", Context.ConnectionId, groupName);
-                throw;
+                _logger.LogError($"Error adding client {Context.ConnectionId} to group {groupName}: {ex.Message}", ex);
             }
         }
 
+        // حذف کلاینت از گروه
         public async Task RemoveFromGroup(string groupName)
         {
             try
             {
+                // حذف از گروه
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-                _userGroups.TryRemove(Context.ConnectionId, out _);
-                _logger.LogInformation("Client {ConnectionId} removed from group {GroupName}", Context.ConnectionId, groupName);
+                _userGroups.TryRemove(Context.ConnectionId, out _); // حذف از دیکشنری
+                _logger.LogInformation($"Client {Context.ConnectionId} removed from group {groupName}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing client {ConnectionId} from group {GroupName}", Context.ConnectionId, groupName);
-                throw;
+                _logger.LogError($"Error removing client {Context.ConnectionId} from group {groupName}: {ex.Message}", ex);
+            }
+        }
+
+        // متد برای دریافت سیگنال‌ها از سرور و ارسال به کلاینت‌ها
+        public async Task ReceiveSignalFromServer(SignalData signal)
+        {
+            if (signal == null)
+            {
+                _logger.LogWarning($"Null signal received from server.");
+                return;
+            }
+
+            try
+            {
+                // ارسال سیگنال دریافتی به تمامی کلاینت‌ها
+                await Clients.All.SendAsync("ReceiveSignals", signal);
+                _logger.LogInformation($"Signal received from server and sent to all clients.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing signal from server: {ex.Message}", ex);
             }
         }
     }

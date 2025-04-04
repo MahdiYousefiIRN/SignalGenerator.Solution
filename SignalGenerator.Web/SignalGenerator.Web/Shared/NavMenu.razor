@@ -5,35 +5,41 @@
         <button class="menu-toggle" @onclick="ToggleNavMenu">☰</button>
         <span class="title">Signal Generator</span>
     </div>
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="dashboard">
-            <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
-        </NavLink>
-    </div>
 
     <nav class="nav-links @NavMenuCssClass" @onclick="ToggleNavMenu">
-        <NavLink class="nav-item" href="/home" Match="NavLinkMatch.All">
-            <span class="oi oi-home"></span> Home
-        </NavLink>
-        <NavLink class="nav-item" href="/send-signal">
-            <span class="oi oi-plus"></span> Send Signal
-        </NavLink>
-        <NavLink class="nav-item" href="/show-signal">
-            <span class="oi oi-eye"></span> Show Signal
-        </NavLink>
-        <NavLink class="nav-item" href="/signals">
-            <span class="oi oi-list"></span> Signals
-        </NavLink>
-        <NavLink class="nav-item" href="/testing">
-            <span class="oi oi-check"></span> Testing
-        </NavLink>
+        @foreach (var link in NavLinks)
+        {
+            <NavLink class="nav-item" href="@link.Href" Match="link.Match">
+                <span class="@link.Icon"></span> @link.Label
+            </NavLink>
+        }
     </nav>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
     private string? NavMenuCssClass => collapseNavMenu ? "collapsed" : null;
+
+    // List of links for navigation
+    private List<NavLinkItem> NavLinks => new List<NavLinkItem>
+    {
+        new NavLinkItem { Href = "/home", Label = "Home", Icon = "oi oi-home", Match = NavLinkMatch.All },
+        new NavLinkItem { Href = "/send-signal", Label = "Send Signal", Icon = "oi oi-plus", Match = NavLinkMatch.Prefix },
+        new NavLinkItem { Href = "/show-signal", Label = "Show Signal", Icon = "oi oi-eye", Match = NavLinkMatch.Prefix },
+        new NavLinkItem { Href = "/signals", Label = "Signals", Icon = "oi oi-list", Match = NavLinkMatch.Prefix },
+        new NavLinkItem { Href = "/testing", Label = "Testing", Icon = "oi oi-check", Match = NavLinkMatch.Prefix }
+    };
+
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+
+    // NavLinkItem class to structure links
+    private class NavLinkItem
+    {
+        public string Href { get; set; }
+        public string Label { get; set; }
+        public string Icon { get; set; }
+        public NavLinkMatch Match { get; set; }
+    }
 }
 
 <style>

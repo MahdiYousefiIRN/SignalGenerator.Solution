@@ -1,45 +1,81 @@
-@page "/get-signal"
+﻿@page "/get-signal"
 @inject HttpClient Http
+@inject ILogger<GetSignalComponent> Logger
 
-<h2>Get Signals</h2>
+<h2>🔍 Get Signals</h2>
 
-<form @onsubmit="GetSignals">
-    <label>Count:</label>
-    <input type="number" @bind="Count" required>
+<!-- Form for getting signals -->
+<form @onsubmit="GetSignals" class="signal-form">
+    <div class="form-group">
+        <label for="countInput">Count:</label>
+        <input id="countInput" type="number" @bind="Count" class="form-control" required>
+    </div>
 
-    <label>Protocol:</label>
-    <select @bind="ProtocolType">
-        <option value="http">HTTP</option>
-        <option value="modbus">Modbus</option>
-        <option value="signalar">SignalR</option>
-    </select>
+    <div class="form-group">
+        <label for="protocolTypeSelect">Protocol:</label>
+        <select id="protocolTypeSelect" @bind="ProtocolType" class="form-control">
+            <option value="http">HTTP</option>
+            <option value="modbus">Modbus</option>
+            <option value="signalar">SignalR</option>
+        </select>
+    </div>
 
-    <button type="submit">Get</button>
+    <button type="submit" class="btn btn-primary">Get Signals</button>
 </form>
 
-<div id="result">
+<!-- Result Section -->
+<div id="result" class="mt-4">
     @if (!string.IsNullOrEmpty(Result))
     {
         <pre>@Result</pre>
     }
 </div>
 
+<!-- Loading Spinner -->
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+
 @code {
     private int Count { get; set; }
     private string ProtocolType { get; set; } = "http";
     private string Result { get; set; }
+    private bool isLoading { get; set; } = false;
 
+    /// <summary>
+    /// Handles the signal request based on the user input.
+    /// </summary>
     private async Task GetSignals()
     {
         try
         {
+            // Set loading state
+            isLoading = true;
+            Logger.LogInformation("🔍 Requesting signals with Count: {Count}, Protocol: {ProtocolType}", Count, ProtocolType);
+
+            // Send GET request to the API
             var response = await Http.GetAsync($"/api/signal/get?count={Count}&protocolType={ProtocolType}");
+
+            // Ensure the request was successful
             response.EnsureSuccessStatusCode();
+
+            // Read and display the result
             Result = await response.Content.ReadAsStringAsync();
+            Logger.LogInformation("✅ Signals fetched successfully.");
         }
         catch (Exception ex)
         {
-            Result = $"Error: {ex.Message}";
+            // Handle error and display error message
+            Result = $"❌ Error: {ex.Message}";
+            Logger.LogError("⛔ Error fetching signals: {Message}", ex.Message);
+        }
+        finally
+        {
+            // Reset loading state
+            isLoading = false;
         }
     }
 }

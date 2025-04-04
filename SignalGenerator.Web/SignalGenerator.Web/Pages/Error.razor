@@ -1,1 +1,43 @@
- 
+﻿@page "/error"
+@inject ILogger<Error> Logger
+@inject NavigationManager Navigation 
+
+<h3 class="text-danger">🚨 خطا رخ داده است!</h3>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert alert-danger">
+        <strong>❌ خطا:</strong> @ErrorMessage
+    </div>
+}
+else
+{
+    <div class="alert alert-warning">
+        ⚠️ خطای نامشخص رخ داده است.
+    </div>
+}
+
+<button class="btn btn-primary" @onclick="ReloadPage">🔄 تلاش مجدد</button>
+<button class="btn btn-secondary" @onclick="GoToHome">🏠 بازگشت به صفحه اصلی</button>
+
+@code {
+    private string ErrorMessage { get; set; } = "مشکلی در پردازش درخواست شما رخ داده است.";
+
+    protected override void OnInitialized()
+    {
+        // ثبت لاگ برای نمایش صفحه خطا
+        Logger.LogError("⛔ صفحه خطا نمایش داده شد.");
+    }
+
+    private void ReloadPage()
+    {
+        Logger.LogInformation("🔄 تلاش برای بارگذاری مجدد صفحه...");
+        Navigation.NavigateTo("/error", forceLoad: true);
+    }
+
+    private void GoToHome()
+    {
+        Logger.LogInformation("🏠 کاربر به صفحه اصلی منتقل شد.");
+        Navigation.NavigateTo("/");
+    }
+}

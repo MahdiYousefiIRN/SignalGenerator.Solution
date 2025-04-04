@@ -1,109 +1,146 @@
 ﻿@page "/send-signal"
-@using SignalGenerator.Core.Models
-@using SignalGenerator.Data.Interfaces
-@using SignalGenerator.Data.Services
-@using SignalGenerator.Protocols.Http
-@using SignalGenerator.Protocols.Modbus
-@using SignalGenerator.Protocols.SignalR
 
-@inject SignalProcessorService SignalProcessorService
-@inject ILoggerFactory LoggerFactory
-@inject ILogger<SendSignalComponent> Logger
+@using System.ComponentModel.DataAnnotations
+@using SignalGenerator.Data.Models
+@using SignalGenerator.Protocols
+@using SignalGenerator.Web.Interfaces
+@using SignalGenerator.Helpers
+@inject ISignalProcessorService SignalProcessorService
+@inject ProtocolFactory ProtocolFactory
+@inject ILoggerService Logger
 
-<h2>Send Signal</h2>
+<h2>📡 Send Signal</h2>
 
-<div>
-    <h4>Send Signals</h4>
-    <form @onsubmit="SendSignals">
-        <label for="protocolType">Protocol Type:</label>
-        <select id="protocolType" @bind="ProtocolType" required>
-            <option value="http">HTTP</option>
-            <option value="modbus">Modbus</option>
-            <option value="signalar">SignalR</option>
-        </select>
+<div class="form-container">
+    <EditForm Model="@formModel" OnValidSubmit="SendSignals">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-        <label for="signalCount">Number of Signals:</label>
-        <input type="number" id="signalCount" @bind="SignalCount" min="1" max="1000" placeholder="Enter number of signals" required />
+        <div class="form-group">
+            <label>Protocol Type:</label>
+            <select class="form-control" @bind="formModel.ProtocolType" @bind:event="onchange">
+                <option value="http">HTTP</option>
+                <option value="modbus">Modbus</option>
+                <option value="signalar">SignalR</option>
+            </select>
+        </div>
 
-        <label for="duration">Duration (in minutes):</label>
-        <input type="number" id="duration" @bind="Duration" min="1" max="1440" placeholder="Duration in minutes" required />
+        <div class="form-group">
+            <label>IP Address:</label>
+            <InputText class="form-control" @bind-Value="formModel.IpAddress" />
+        </div>
 
-        <button type="submit">Send Signals</button>
-    </form>
+        <div class="form-group">
+            <label>Port:</label>
+            <InputNumber class="form-control" @bind-Value="formModel.Port" />
+        </div>
 
-    <div id="sendResult">
-        @if (!string.IsNullOrEmpty(SendResult))
-        {
-            <p class="success-msg">@SendResult</p>
-        }
-    </div>
+        <div class="form-group">
+            <label>Number of Signals:</label>
+            <InputNumber class="form-control" @bind-Value="formModel.SignalCount" />
+        </div>
+
+        <div class="form-group">
+            <label>Duration (in minutes):</label>
+            <InputNumber class="form-control" @bind-Value="formModel.Duration" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">🚀 Send Signals</button>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(SendResult))
+    {
+        <div class="alert @ResultCssClass mt-3">@SendResult</div>
+    }
 </div>
 
-<style>
-    .success-msg {
-        color: green;
-        font-weight: bold;
-    }
-</style>
-
 @code {
-    private string ProtocolType { get; set; } = "http";
-    private int SignalCount { get; set; } = 10;
-    private int Duration { get; set; } = 60;
-    private string SendResult { get; set; }
+    private SignalFormModel formModel = new();
+    private string SendResult = string.Empty;
+
+    private string ResultCssClass => SendResult.StartsWith("✅") ? "alert-success" : "alert-danger";
 
     private async Task SendSignals()
     {
         try
         {
-            var signals = GenerateRandomSignals(SignalCount);
-            var protocolCommunication = GetProtocol(ProtocolType);
-            var result = await SignalProcessorService.SendSignalsAsync(signals, protocolCommunication);
-            SendResult = result ? "Signals sent successfully." : "Failed to send signals.";
+            var signals = GenerateRandomSignals(formModel.SignalCount);
+            var protocol = ProtocolFactory.CreateProtocol(formModel.ProtocolType, formModel.IpAddress, formModel.Port);
+
+            await Logger.LogInfo($"🚀 Sending {signals.Count} signals using {formModel.ProtocolType} on {formModel.IpAddress}:{formModel.Port}...");
+
+            var result = await SignalProcessorService.SendSignalsAsync(signals, protocol);
+            SendResult = result ? "✅ Signals sent successfully." : "❌ Failed to send signals.";
+
+            await Logger.LogInfo(SendResult);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error occurred while sending signals.");
-            SendResult = $"Error: {ex.Message}";
+            SendResult = $"❌ Error: {ex.Message}";
+            await Logger.LogError("Error occurred while sending signals.", ex);
         }
     }
 
     private List<SignalData> GenerateRandomSignals(int count)
     {
-        var signals = new List<SignalData>();
         var random = new Random();
-
-        for (int i = 0; i < count; i++)
-        {
-            double randomFrequency = random.NextDouble() * (70 - 40) + 40;
-            double randomPower = random.NextDouble() * 100;
-            DateTime timestamp = DateTime.UtcNow;
-
-            var signal = new SignalData
-                {
-                    Frequency = randomFrequency,
-                    Power = randomPower,
-                    Timestamp = timestamp,
-                    CoilStatus = random.NextDouble() > 0.5,
-                    DiscreteInputStatus = random.NextDouble() > 0.5,
-                    ProtocolType = ProtocolType
-                };
-
-            signals.Add(signal);
-        }
-
-        return signals;
+        return Enumerable.Range(0, count).Select(_ => new SignalData
+            {
+                Frequency = random.NextDouble() * (70 - 40) + 40,
+                Power = random.NextDouble() * 100,
+                Timestamp = DateTime.UtcNow,
+                CoilStatus = random.NextDouble() > 0.5,
+                DiscreteInputStatus = random.NextDouble() > 0.5,
+                ProtocolType = formModel.ProtocolType
+            }).ToList();
     }
 
-    private IProtocolCommunication GetProtocol(string protocolType)
+    // این متد زمانی که پروتکل تغییر می‌کند، فراخوانی می‌شود
+    private void OnProtocolChange()
     {
-        // استفاده از ILoggerFactory برای ایجاد ILogger مناسب برای هر پروتکل
-        return protocolType.ToLower() switch
+        UpdateDefaults();
+    }
+
+    // به‌روزرسانی مقادیر پیش‌فرض براساس پروتکل انتخابی
+    private void UpdateDefaults()
+    {
+        switch (formModel.ProtocolType.ToLower())
         {
-            "http" => new Http_Protocol("http://localhost:5000", LoggerFactory.CreateLogger<Http_Protocol>()),
-            "modbus" => new ModbusProtocol("127.0.0.1", 502, LoggerFactory.CreateLogger<ModbusProtocol>()),
-            "signalar" => new SignalRProtocol("http://localhost:5000/signalhub", LoggerFactory.CreateLogger<SignalRProtocol>()),
-            _ => throw new ArgumentException($"Invalid protocol type: {protocolType}")
-        };
+            case "http":
+                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض برای HTTP
+                formModel.Port = 5000;  // پیش‌فرض برای HTTP
+                break;
+            case "modbus":
+                formModel.IpAddress = "192.168.1.1";  // پیش‌فرض برای Modbus
+                formModel.Port = 502;  // پیش‌فرض برای Modbus
+                break;
+            case "signalar":
+                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض برای SignalR
+                formModel.Port = 5000;  // پیش‌فرض برای SignalR
+                break;
+            default:
+                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض کلی
+                formModel.Port = 5000;  // پیش‌فرض کلی
+                break;
+        }
+    }
+
+    // مدل داده برای فرم ارسال سیگنال
+    private class SignalFormModel
+    {
+        [Required]
+        public string ProtocolType { get; set; } = "http";
+
+        [Required(ErrorMessage = "IP address is required.")]
+        public string IpAddress { get; set; } = "127.0.0.1";
+
+        [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535.")]
+        public int Port { get; set; } = 5000;
+
+        [Range(1, 1000, ErrorMessage = "Please enter between 1 and 1000 signals.")]
+        public int SignalCount { get; set; } = 10;
+
+        [Range(1, 1440, ErrorMessage = "Duration must be between 1 and 1440 minutes.")]
+        public int Duration { get; set; } = 60;
     }
 }

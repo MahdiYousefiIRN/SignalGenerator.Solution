@@ -1,0 +1,50 @@
+﻿@page "/MainHome"
+
+@inject ILogger<MainHomeComponent> Logger
+
+<h3>🏠 Home Page</h3>
+
+<!-- Navigation Buttons -->
+<button class="btn-primary" @onclick="ShowIndex">🔹 Index</button>
+<button class="btn-secondary" @onclick="ShowPrivacy">🔒 Privacy</button>
+<button class="btn-danger" @onclick="ShowError">⚠️ Error</button>
+
+<!-- Display Message -->
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p class="message-box">@Message</p>
+}
+
+@code {
+    private string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Handles the Index button click event.
+    /// </summary>
+    private void ShowIndex()
+    {
+        Message = "📌 Index page logic is not implemented.";
+        Logger.LogInformation("✅ Index page logic executed.");
+        Console.WriteLine("🖥️ [Console] Index page logic executed.");
+    }
+
+    /// <summary>
+    /// Handles the Privacy button click event.
+    /// </summary>
+    private void ShowPrivacy()
+    {
+        Message = "🔒 Privacy page logic is not implemented.";
+        Logger.LogInformation("✅ Privacy page logic executed.");
+        Console.WriteLine("🖥️ [Console] Privacy page logic executed.");
+    }
+
+    /// <summary>
+    /// Handles the Error button click event.
+    /// </summary>
+    private void ShowError()
+    {
+        Message = "⚠️ Error page logic is not implemented.";
+        Logger.LogWarning("⚠️ Error page logic executed.");
+        Console.WriteLine("🖥️ [Console] Error page logic executed.");
+    }
+}

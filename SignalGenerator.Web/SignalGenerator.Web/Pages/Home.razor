@@ -1,0 +1,105 @@
+﻿@page "/home"
+@using SignalGenerator.Web.Services
+@using System.Reflection
+@inject ILogger<Home> Logger
+@inject AppState AppState
+
+<h3>🏠 صفحه اصلی</h3>
+
+<!-- Buttons for navigating to different pages -->
+<button @onclick="ShowIndex" class="btn btn-info">📄 Index</button>
+<button @onclick="ShowPrivacy" class="btn btn-warning">🔒 Privacy</button>
+<button @onclick="ShowError" class="btn btn-danger">⚠️ Error</button>
+
+<!-- Displaying messages -->
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p><strong>🔔 @Message</strong></p>
+}
+
+<hr />
+
+<!-- Displaying loaded components -->
+<h3>📌 نمایش کامپوننت‌ها</h3>
+
+@if (IsLoading)
+{
+    <p>⏳ در حال بارگذاری...</p>
+}
+else
+{
+    @foreach (var component in ComponentTypes)
+    {
+        <h4>🧩 @component.Name</h4>
+        <Component Type="component" />
+        <hr />
+    }
+}
+
+@code {
+    private string Message;
+    private List<Type> ComponentTypes = new();
+    private bool IsLoading = false;
+
+    /// <summary>
+    /// Initializes the component and subscribes to loading events from AppState.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribing to loading events from AppState
+        AppState.OnLoadingStart += () => { 
+            IsLoading = true; 
+            StateHasChanged(); 
+            return Task.CompletedTask; 
+        };
+        AppState.OnLoadingEnd += () => { 
+            IsLoading = false; 
+            StateHasChanged(); 
+            return Task.CompletedTask; 
+        };
+
+        // Load components after initialization
+        await LoadComponents();
+    }
+
+    /// <summary>
+    /// Loads components dynamically from the "SignalGenerator.Web.Pages" namespace.
+    /// </summary>
+    private async Task LoadComponents()
+    {
+        await AppState.StartLoading(); // Start loading
+        await Task.Delay(1000); // Simulating loading time
+        ComponentTypes = Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(t => t.IsSubclassOf(typeof(ComponentBase)) && t.Namespace == "SignalGenerator.Web.Pages")
+            .ToList();
+        await AppState.EndLoading(); // End loading
+    }
+
+    /// <summary>
+    /// Updates the message and logs when the Index button is clicked.
+    /// </summary>
+    private void ShowIndex()
+    {
+        Message = "صفحه Index هنوز پیاده‌سازی نشده است.";
+        Logger.LogInformation("✅ Index button clicked.");
+    }
+
+    /// <summary>
+    /// Updates the message and logs when the Privacy button is clicked.
+    /// </summary>
+    private void ShowPrivacy()
+    {
+        Message = "صفحه Privacy هنوز پیاده‌سازی نشده است.";
+        Logger.LogInformation("🔒 Privacy button clicked.");
+    }
+
+    /// <summary>
+    /// Updates the message and logs when the Error button is clicked.
+    /// </summary>
+    private void ShowError()
+    {
+        Message = "صفحه Error هنوز پیاده‌سازی نشده است.";
+        Logger.LogWarning("⚠️ Error button clicked.");
+    }
+}

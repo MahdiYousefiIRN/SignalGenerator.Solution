@@ -1,9 +1,10 @@
-using SignalGenerator.Data.Interfaces;
+﻿using SignalGenerator.Data.Interfaces;
 using SignalGenerator.Data.Models;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using CsvHelper;
 using System.Globalization;
+using ClosedXML.Excel;
 
 namespace SignalGenerator.Data.Services
 {
@@ -18,11 +19,21 @@ namespace SignalGenerator.Data.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Exports signal data to a CSV file.
+        /// </summary>
         public async Task<byte[]> ExportToCsvAsync(DateTime startTime, DateTime endTime, string? protocolType = null)
         {
             try
             {
+                _logger.LogInformation("📄 Fetching data for CSV export...");
                 var signals = await _dataStore.GetSignalsAsync("", startTime, endTime, protocolType);
+
+                if (!signals.Any())
+                {
+                    _logger.LogWarning("⚠ No data available for CSV export.");
+                    return Array.Empty<byte>();
+                }
 
                 using var memoryStream = new MemoryStream();
                 using var writer = new StreamWriter(memoryStream, Encoding.UTF8);
@@ -30,46 +41,74 @@ namespace SignalGenerator.Data.Services
 
                 csv.WriteRecords(signals);
                 await writer.FlushAsync();
+
+                _logger.LogInformation("✅ CSV export completed successfully.");
                 return memoryStream.ToArray();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting data to CSV");
-                throw;
+                _logger.LogError(ex, "⛔ Error exporting data to CSV.");
+                throw new Exception("CSV export failed. Please check logs for details.", ex);
             }
         }
 
+        /// <summary>
+        /// Exports signal data to a JSON file.
+        /// </summary>
         public async Task<byte[]> ExportToJsonAsync(DateTime startTime, DateTime endTime, string? protocolType = null)
         {
             try
             {
+                _logger.LogInformation("📝 Fetching data for JSON export...");
                 var signals = await _dataStore.GetSignalsAsync("", startTime, endTime, protocolType);
+
+                if (!signals.Any())
+                {
+                    _logger.LogWarning("⚠ No data available for JSON export.");
+                    return Array.Empty<byte>();
+                }
+
                 var json = System.Text.Json.JsonSerializer.Serialize(signals, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+                _logger.LogInformation("✅ JSON export completed successfully.");
                 return Encoding.UTF8.GetBytes(json);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting data to JSON");
-                throw;
+                _logger.LogError(ex, "⛔ Error exporting data to JSON.");
+                throw new Exception("JSON export failed. Please check logs for details.", ex);
             }
         }
 
+        /// <summary>
+        /// Exports signal data to an Excel file (.xlsx).
+        /// </summary>
         public async Task<byte[]> ExportToExcelAsync(DateTime startTime, DateTime endTime, string? protocolType = null)
         {
             try
             {
+                _logger.LogInformation("📊 Fetching data for Excel export...");
                 var signals = await _dataStore.GetSignalsAsync("", startTime, endTime, protocolType);
 
-                using var workbook = new ClosedXML.Excel.XLWorkbook();
+                if (!signals.Any())
+                {
+                    _logger.LogWarning("⚠ No data available for Excel export.");
+                    return Array.Empty<byte>();
+                }
+
+                using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Signals");
 
-                worksheet.Cell(1, 1).Value = "Timestamp";
-                worksheet.Cell(1, 2).Value = "Frequency (Hz)";
-                worksheet.Cell(1, 3).Value = "Power (dB)";
-                worksheet.Cell(1, 4).Value = "Protocol Type";
-                worksheet.Cell(1, 5).Value = "Coil Status";
-                worksheet.Cell(1, 6).Value = "Discrete Input Status";
+                // Headers
+                var headers = new[] { "Timestamp", "Frequency (Hz)", "Power (dB)", "Protocol Type", "Coil Status", "Discrete Input Status" };
+                for (int col = 0; col < headers.Length; col++)
+                {
+                    worksheet.Cell(1, col + 1).Value = headers[col];
+                    worksheet.Cell(1, col + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, col + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                }
 
+                // Data Rows
                 for (int i = 0; i < signals.Count; i++)
                 {
                     var signal = signals[i];
@@ -82,18 +121,24 @@ namespace SignalGenerator.Data.Services
                 }
 
                 worksheet.Columns().AdjustToContents();
+
                 using var stream = new MemoryStream();
                 workbook.SaveAs(stream);
+
+                _logger.LogInformation("✅ Excel export completed successfully.");
                 return stream.ToArray();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting data to Excel");
-                throw;
+                _logger.LogError(ex, "⛔ Error exporting data to Excel.");
+                throw new Exception("Excel export failed. Please check logs for details.", ex);
             }
         }
     }
 
+    /// <summary>
+    /// Interface for exporting signal data.
+    /// </summary>
     public interface IDataExportService
     {
         Task<byte[]> ExportToCsvAsync(DateTime startTime, DateTime endTime, string? protocolType = null);

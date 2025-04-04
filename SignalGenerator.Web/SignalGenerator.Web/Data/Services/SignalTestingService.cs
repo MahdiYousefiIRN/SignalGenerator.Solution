@@ -1,28 +1,26 @@
-﻿namespace SignalGenerator.Data.Services
+﻿namespace SignalGenerator.Web.Services
 {
-    using SignalGenerator.Core.Models;
     using SignalGenerator.Data.Interfaces;
     using SignalGenerator.Data.Models;
+    using SignalGenerator.Web.Data.Interface;
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
     public class SignalTestingService : ISignalTestingService
     {
-        private static string currentTestStatus = "Test not started";  // وضعیت تست فعلی
-        private static List<string> errors = new List<string>();  // ذخیره‌سازی خطاها
+        private static string _currentTestStatus = "Test not started";
+        private static readonly List<string> _errors = new List<string>();
 
         public async Task<TestResult> TestSignalTransmissionAsync(SignalData config)
         {
-            // فرضی: سیگنال را تست می‌کنیم و نتیجه را باز می‌گردانیم
-            currentTestStatus = "Test in progress";
+            _currentTestStatus = "Test in progress";
 
-            // ایجاد نتیجه تست
             var result = new TestResult
             {
                 StartTime = DateTime.Now,
                 EndTime = DateTime.Now.AddMinutes(5),
-                Success = true, // فرضی
+                Success = true,
                 Config = config,
                 SignalsGenerated = 10,
                 HttpTransmissions = new List<TransmissionResult>(),
@@ -36,26 +34,26 @@
                 PerformanceMetrics = new List<PerformanceMetric>()
             };
 
-            // فرضی: نتیجه را باز می‌گردانیم
+            _currentTestStatus = "Test completed";
             return await Task.FromResult(result);
         }
 
-        public async Task<string> GetTestStatusAsync()
+        public Task<string> GetTestStatusAsync()
         {
-            // وضعیت تست را باز می‌گردانیم
-            return await Task.FromResult(currentTestStatus);
+            return Task.FromResult(_currentTestStatus);
         }
 
-        public async Task<List<string>> GetErrorsAsync()
+        public Task<List<string>> GetErrorsAsync()
         {
-            // خطاهای ذخیره‌شده را باز می‌گردانیم
-            return await Task.FromResult(errors);
+            return Task.FromResult(new List<string>(_errors));
         }
 
-        // متد برای شبیه‌سازی اضافه کردن خطا
         public void AddError(string errorMessage)
         {
-            errors.Add(errorMessage);
+            if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                _errors.Add(errorMessage);
+            }
         }
     }
 }

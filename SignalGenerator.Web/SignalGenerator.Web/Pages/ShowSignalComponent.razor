@@ -1,30 +1,55 @@
-@page "/show-signal"
-@using SignalGenerator.Core.Models
+﻿@page "/show-signal"
+@using SignalGenerator.Data.Interfaces
+@using SignalGenerator.Data.Models
+@using SignalGenerator.Helpers
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@inject ILoggerService LoggerService
 
-<h2>Show Signals</h2>
+<h2>📡 نمایش سیگنال‌ها</h2>
 
 @if (!string.IsNullOrEmpty(ErrorMessage))
 {
-    <p style="color: red;">@ErrorMessage</p>
+    <p style="color: red;">❌ @ErrorMessage</p>
 }
 
-<h4>Signals</h4>
+@if (IsConnecting)
+{
+    <p style="color: orange;">🔄 در حال تلاش برای اتصال...</p>
+}
+
+@if (IsConnected)
+{
+    <p style="color: green;">✅ متصل به سرور</p>
+}
+else
+{
+    <p style="color: red;">🔴 قطع ارتباط با سرور</p>
+}
+
+<button @onclick="Reconnect" disabled="@IsConnected || IsConnecting">🔄 اتصال مجدد</button>
+<button @onclick="Disconnect" disabled="@(IsConnected == false)">🛑 قطع اتصال</button>
+
+<h4>📊 لیست سیگنال‌ها</h4>
 
 @if (Signals.Any())
 {
+    <input type="text" placeholder="جستجو..." @bind="SearchTerm" class="search-bar" />
+
     <table>
         <thead>
             <tr>
-                <th>Frequency</th>
-                <th>Power</th>
-                <th>Timestamp</th>
+                <th>📡 نام</th>
+                <th>📶 فرکانس</th>
+                <th>⚡ توان</th>
+                <th>⏱️ زمان دریافت</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var signal in Signals)
+            @foreach (var signal in Signals.Where(s => string.IsNullOrEmpty(SearchTerm) || s.Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)))
             {
                 <tr>
+                    <td>@signal.Name</td>
                     <td>@signal.Frequency</td>
                     <td>@signal.Power</td>
                     <td>@signal.Timestamp</td>
@@ -35,41 +60,95 @@
 }
 else
 {
-    <p>No signals available.</p>
+    <p>⏳ در انتظار دریافت سیگنال‌ها...</p>
 }
-
-<button @onclick="Disconnect">Disconnect</button>
 
 @code {
     private HubConnection _hubConnection;
-    private List<SignalData> Signals { get; set; } = new List<SignalData>();
+    private List<SignalData> Signals { get; set; } = new();
     private string ErrorMessage { get; set; }
+    private string SearchTerm { get; set; }
+    private bool IsConnecting { get; set; }
+    private bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
     protected override async Task OnInitializedAsync()
     {
+        var hubUrl = Configuration["ProtocolSettings:SignalR:HubUrl"];
+        if (string.IsNullOrEmpty(hubUrl))
+        {
+            ErrorMessage = "❌ آدرس هاب SignalR در پیکربندی تنظیم نشده است.";
+            return;
+        }
+
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/signalhub"))
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
             .Build();
 
         _hubConnection.On<List<SignalData>>("ReceiveSignals", (receivedSignals) =>
         {
-            Signals = receivedSignals;
+            Signals = receivedSignals ?? new List<SignalData>();
+            LoggerService.LogInfo($"✅ دریافت {Signals.Count} سیگنال جدید.");
             StateHasChanged();
         });
 
+        _hubConnection.Reconnecting += (error) =>
+        {
+            IsConnecting = true;
+            LoggerService.LogWarning("🔄 تلاش برای اتصال مجدد...");
+            return Task.CompletedTask;
+        };
+
+        _hubConnection.Reconnected += (connectionId) =>
+        {
+            IsConnecting = false;
+            LoggerService.LogInfo($"✅ اتصال مجدد موفق. Connection ID: {connectionId}");
+            return Task.CompletedTask;
+        };
+
+        _hubConnection.Closed += async (error) =>
+        {
+            IsConnecting = false;
+            LoggerService.LogError("❌ اتصال قطع شد. تلاش مجدد در 5 ثانیه...");
+            await Task.Delay(5000);
+            await Connect();
+        };
+
+        await Connect();
+    }
+
+    private async Task Connect()
+    {
         try
         {
+            IsConnecting = true;
+            LoggerService.LogInfo("🔄 تلاش برای اتصال به SignalR...");
             await _hubConnection.StartAsync();
+            LoggerService.LogInfo($"✅ اتصال برقرار شد. وضعیت: {_hubConnection.State}");
             await _hubConnection.SendAsync("RequestSignals");
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error: {ex.Message}";
+            ErrorMessage = $"❌ خطا در اتصال: {ex.Message}";
+            LoggerService.LogError($"❌ خطا در اتصال: {ex.Message}\n{ex.StackTrace}");
         }
     }
 
     private async Task Disconnect()
     {
-        await _hubConnection.StopAsync();
+        try
+        {
+            await _hubConnection.StopAsync();
+            LoggerService.LogInfo("🛑 اتصال قطع شد.");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.LogError($"❌ خطا در قطع اتصال: {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
+    private async Task Reconnect()
+    {
+        await Connect();
     }
 }

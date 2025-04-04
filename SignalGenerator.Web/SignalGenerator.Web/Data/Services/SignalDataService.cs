@@ -1,12 +1,12 @@
 ﻿namespace SignalGenerator.Web.Data.Services
 {
-    using SignalGenerator.Core.Models;
     using SignalGenerator.Data.Interfaces;
     using Microsoft.Extensions.Logging;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using SignalGenerator.Web.Data.Interface;
+    using SignalGenerator.Data.Models;
 
     public class SignalDataService : ISignalDataService
     {

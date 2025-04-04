@@ -1,138 +1,156 @@
 ﻿using SignalGenerator.Data.Interfaces;
 using SignalGenerator.Data.Models;
-using System.Net.Http;
-using System.Net.Http.Json;
-using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
-using SignalGenerator.Core.Models;
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Linq;
+using System.Threading.Tasks;
+using SignalGenerator.Helpers;
 
 namespace SignalGenerator.Protocols.Http
 {
-    public class Http_Protocol : IProtocolCommunication
+    public class Http_Protocol : IProtocolCommunication, IDisposable
     {
         private readonly HttpClient _httpClient;
         private readonly string _baseUrl;
-        private readonly ILogger<Http_Protocol> _logger;
         private readonly AsyncRetryPolicy<HttpResponseMessage> _retryPolicy;
+        private readonly ILoggerService _logger;
         private const int MaxRetries = 3;
         private const int TimeoutSeconds = 30;
 
-        public Http_Protocol(string baseUrl, ILogger<Http_Protocol> logger)
+        // Constructor
+        public Http_Protocol(IHttpClientFactory httpClientFactory, string baseUrl, ILoggerService logger)
         {
+            _httpClient = httpClientFactory.CreateClient();
             _baseUrl = baseUrl;
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // بررسی مقدار null
-            _httpClient = new HttpClient
-            {
-                Timeout = TimeSpan.FromSeconds(TimeoutSeconds)
-            };
+            _logger = logger;
+            _httpClient.Timeout = TimeSpan.FromSeconds(TimeoutSeconds);
 
+            // Configuring retry policy with exponential backoff
             _retryPolicy = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
                 .Or<TaskCanceledException>()
                 .WaitAndRetryAsync(MaxRetries, retryAttempt =>
                     TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-                    onRetry: (exception, timeSpan, retryCount, context) =>
+                    async (exception, timeSpan, retryCount, context) =>
                     {
-                        _logger.LogWarning("Retry {RetryCount} after {TimeSpan}s due to {ExceptionMessage}",
-                            retryCount, timeSpan.TotalSeconds, exception.Exception.Message);
+                        var errorMessage = $"Retry {retryCount} after {timeSpan.TotalSeconds}s due to {exception.Exception?.Message ?? "Unknown error"}";
+                        await LogAsync(errorMessage, LogLevel.Warning);
                     });
         }
 
+        // Generic logging method
+        private async Task LogAsync(string message, LogLevel logLevel = LogLevel.Info, Exception? exception = null)
+        {
+            await _logger.LogAsync(message, logLevel, exception);
+        }
+
+        // Receive signals from the server
         public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
             try
             {
                 var url = $"{_baseUrl}/api/signals/get?count={config.SignalCount}";
-                var response = await _retryPolicy.ExecuteAsync(async () =>
-                    await _httpClient.GetAsync(url));
+                await LogAsync($"Requesting signals from {url}...", LogLevel.Info);
+
+                var response = await _retryPolicy.ExecuteAsync(() =>
+                    _httpClient.GetAsync(url));
 
                 response.EnsureSuccessStatusCode();
                 var signals = await response.Content.ReadFromJsonAsync<List<SignalData>>();
 
                 if (signals == null || !signals.Any())
                 {
-                    _logger.LogWarning("No signals received from {Url}", url);
+                    await LogAsync($"⚠ No signals received from {url}", LogLevel.Warning);
                     return new List<SignalData>();
                 }
 
-                _logger.LogInformation("Successfully received {Count} signals", signals.Count);
+                await LogAsync($"✅ Successfully received {signals.Count} signals", LogLevel.Info);
                 return signals;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error receiving signals from {BaseUrl}", _baseUrl);
+                await LogAsync("Error receiving signals", LogLevel.Error, ex);
                 throw new ProtocolException("Failed to receive signals", ex);
             }
         }
 
+        // Send signals to the server
         public async Task<bool> SendSignalsAsync(List<SignalData> signalData)
         {
             if (signalData == null || !signalData.Any())
             {
-                _logger.LogWarning("Attempted to send empty signal data");
-                Console.WriteLine("⚠ Warning: Attempted to send empty signal data");
+                await LogAsync("⚠ Attempted to send empty signal data", LogLevel.Warning);
                 return false;
             }
 
             try
             {
                 var url = $"{_baseUrl}/api/signals/post";
-                Console.WriteLine($"🔄 Sending signals to: {url}");
+                await LogAsync($"🔄 Sending signals to: {url}", LogLevel.Info);
 
-                var response = await _retryPolicy.ExecuteAsync(async () =>
-                    await _httpClient.PostAsJsonAsync(url, signalData));
+                var response = await _retryPolicy.ExecuteAsync(() =>
+                    _httpClient.PostAsJsonAsync(url, signalData));
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorMessage = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"❌ Failed to send signals. Status Code: {response.StatusCode}, Error: {errorMessage}");
+                    await LogAsync($"❌ Failed to send signals. Status Code: {response.StatusCode}, Error: {errorMessage}", LogLevel.Error);
                 }
                 else
                 {
-                    Console.WriteLine($"✅ Successfully sent {signalData.Count} signals");
+                    await LogAsync($"✅ Successfully sent {signalData.Count} signals", LogLevel.Info);
                 }
 
                 return response.IsSuccessStatusCode;
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine($"🚨 HttpRequestException: {ex.Message}");
+                await LogAsync($"🚨 HttpRequestException: {ex.Message}", LogLevel.Error, ex);
                 throw new ProtocolException("Failed to send signals", ex);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error: {ex.Message}");
+                await LogAsync($"❌ Error: {ex.Message}", LogLevel.Error, ex);
                 throw new ProtocolException("Failed to send signals", ex);
             }
         }
 
+        // Monitor server status
         public async Task<bool> MonitorStatusAsync()
         {
             try
             {
                 var url = $"{_baseUrl}/api/signals/status";
-                var response = await _retryPolicy.ExecuteAsync(async () =>
-                    await _httpClient.GetAsync(url));
+                await LogAsync($"Checking status at {url}...", LogLevel.Info);
+
+                var response = await _retryPolicy.ExecuteAsync(() =>
+                    _httpClient.GetAsync(url));
 
                 response.EnsureSuccessStatusCode();
                 var status = await response.Content.ReadFromJsonAsync<bool>();
-                _logger.LogInformation("Status check result: {Status}", status);
+
+                await LogAsync($"Status check result: {status}", LogLevel.Info);
                 return status;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking status at {BaseUrl}", _baseUrl);
+                await LogAsync("Error checking status", LogLevel.Error, ex);
                 throw new ProtocolException("Failed to monitor status", ex);
             }
         }
 
+        // Dispose HttpClient
         public void Dispose()
         {
             _httpClient?.Dispose();
         }
     }
 
+    // Custom exception class
     public class ProtocolException : Exception
     {
         public ProtocolException(string message, Exception innerException)
