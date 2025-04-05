@@ -1,68 +1,52 @@
-﻿using System;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SignalGenerator.Data.Interfaces;
+using SignalGenerator.Data.Models;
 using SignalGenerator.Data.SignalProtocol;
 using SignalGenerator.Helpers;
 using SignalGenerator.Protocols.Http;
 using SignalGenerator.Protocols.Modbus;
-using SignalGenerator.Protocols.SignalR;
 
-namespace SignalGenerator.Protocols
+public class ProtocolFactory
 {
-    public class ProtocolFactory
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ProtocolConfigProvider _configProvider;
+
+    public ProtocolFactory(IServiceProvider serviceProvider, ProtocolConfigProvider configProvider)
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly IConfiguration _configuration;
+        _serviceProvider = serviceProvider;
+        _configProvider = configProvider;
+    }
 
-        public ProtocolFactory(IServiceProvider serviceProvider, IConfiguration configuration)
+    public IProtocolCommunication CreateProtocol(string protocolType, string ipAddress, int port)
+    {
+        // دریافت سرویس لاگ‌گیری
+        var logger = _serviceProvider.GetRequiredService<ILoggerService>();
+
+        // دریافت پیکربندی پروتکل
+        var config = _configProvider.GetConfig(protocolType);
+
+        // انتخاب و ایجاد پروتکل مناسب
+        switch (protocolType.ToLowerInvariant())  // استفاده از ToLowerInvariant برای ثبات بیشتر
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        }
+            case "modbus":
+                var modbusConfig = (ModbusConfig)config;
+                return new ModbusProtocol(modbusConfig.IpAddress, modbusConfig.Port, logger);
 
-        // متدی برای دریافت پروتکل بر اساس نوع پروتکل
-        public IProtocolCommunication GetProtocol(string protocolType)
-        {
-            // استفاده از تنظیمات پیکربندی برای آدرس IP و پورت پیش‌فرض
-            string defaultIp = _configuration.GetValue<string>("ProtocolSettings:DefaultIp", "127.0.0.1");
-            int defaultPort = _configuration.GetValue<int>("ProtocolSettings:DefaultPort", 5000);
+            case "http":
+                var httpConfig = (HttpConfig)config;
+                var httpClientFactory = _serviceProvider.GetRequiredService<IHttpClientFactory>();
+                var baseUrl = $"http://{httpConfig.IpAddress}:{httpConfig.Port}{httpConfig.BasePath}";
+                return new Http_Protocol(httpClientFactory, baseUrl, logger);
 
-            // ساخت پروتکل با آدرس پیش‌فرض و پورت پیش‌فرض
-            return CreateProtocol(protocolType, defaultIp, defaultPort);
-        }
+            case "signalar":
+                var signalrConfig = (SignalRConfig)config;
+                var hubUrl = $"http://{signalrConfig.IpAddress}:{signalrConfig.Port}{signalrConfig.HubUrl}";
+                return new SignalRProtocol(hubUrl, logger);
 
-        // متدی برای ایجاد پروتکل‌ها بر اساس نوع پروتکل و اطلاعات IP و پورت
-        public IProtocolCommunication CreateProtocol(string protocolType, string ip, int port)
-        {
-            if (string.IsNullOrWhiteSpace(protocolType))
-                throw new ArgumentException("Protocol type cannot be null or empty.", nameof(protocolType));
-
-            if (string.IsNullOrWhiteSpace(ip) || port <= 0)
-                throw new ArgumentException("IP and port must be provided and valid.");
-
-            var loggerService = _serviceProvider.GetRequiredService<ILoggerService>();
-
-            loggerService.LogInfo($"Creating protocol: {protocolType} for IP: {ip} and port: {port}");
-
-            // استفاده از دستور switch برای شناسایی نوع پروتکل
-            switch (protocolType.ToLower())
-            {
-                case "modbus":
-                    return new ModbusProtocol(ip, port, loggerService);
-
-                case "http":
-                    var httpClientFactory = _serviceProvider.GetRequiredService<IHttpClientFactory>();
-                    return new Http_Protocol(httpClientFactory, $"http://{ip}:{port}", loggerService);
-
-                case "signalar":
-                    var hubUrl = _configuration.GetValue<string>("ProtocolSettings:SignalR:HubUrl") ?? "http://localhost:5000/signalhub";
-                    return new SignalRProtocol(hubUrl, loggerService);
-
-                default:
-                    loggerService.LogError($"Unsupported protocol type: {protocolType}");
-                    throw new ArgumentException($"❌ Unsupported protocol type: {protocolType}");
-            }
+            default:
+                // در صورت پشتیبانی نکردن پروتکل
+                logger.LogError($"Unsupported protocol type: {protocolType}");
+                throw new NotSupportedException($"Unsupported protocol: {protocolType}");
         }
     }
 }

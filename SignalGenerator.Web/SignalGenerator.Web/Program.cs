@@ -104,11 +104,14 @@ void RegisterCoreServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<AppState>();
     builder.Services.AddScoped<ISignalDataService, SignalDataService>();
 
-    builder.Services.AddScoped<SignalGenerator.Protocols.ProtocolFactory>(sp =>
+    // Register ProtocolConfigProvider
+    builder.Services.AddScoped<ProtocolConfigProvider>();
+
+    builder.Services.AddScoped<ProtocolFactory>(sp =>
     {
-        var config = sp.GetRequiredService<IConfiguration>();
+        var configProvider = sp.GetRequiredService<ProtocolConfigProvider>();
         var loggerService = sp.GetRequiredService<ILoggerService>();
-        return new SignalGenerator.Protocols.ProtocolFactory(sp, config);
+        return new ProtocolFactory(sp, configProvider); // تغییر از IConfiguration به ProtocolConfigProvider
     });
 }
 
@@ -136,12 +139,12 @@ void RegisterProtocols(WebApplicationBuilder builder)
 {
     var config = builder.Configuration;
 
-    RegisterProtocol<Http_Protocol>(builder, config, "HttpProtocol:BaseUrl", "http://localhost:5000");
-    RegisterProtocol<ModbusProtocol>(builder, config, "ProtocolSettings:Modbus:DefaultIp", "127.0.0.1");
+    // اطمینان حاصل کنید که پروتکل‌ها به‌درستی از تنظیمات بارگذاری می‌شوند
+    RegisterProtocol<Http_Protocol>(builder, config, "ProtocolSettings:Http:HubUrl", "http://localhost:5000");
+    RegisterProtocol<ModbusProtocol>(builder, config, "ProtocolSettings:Modbus:IpAddress", "127.0.0.1");
     RegisterProtocol<SignalRProtocol>(builder, config, "ProtocolSettings:SignalR:HubUrl", "http://localhost:5000/signalhub");
 }
 
-// ثبت پروتکل‌ها به صورت مشترک
 // ثبت پروتکل‌ها به صورت مشترک
 void RegisterProtocol<TProtocol>(WebApplicationBuilder builder, IConfiguration config, string configKey, string defaultValue)
     where TProtocol : class, IProtocolCommunication
