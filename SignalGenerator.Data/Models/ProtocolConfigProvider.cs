@@ -17,11 +17,12 @@ public class ProtocolConfigProvider
         }
 
         _protocolConfigs = new Dictionary<string, IProtocolConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "modbus", settings.Modbus },
-            { "http", settings.Http },
-            { "signalar", settings.SignalR }
-        };
+{
+    { "modbus", settings.Modbus },
+    { "http", settings.Http },
+    { "signalr", settings.SignalR } // ✅ اصلاح شد: "signalr" ➜ "signalr"
+};
+
     }
 
     public IProtocolConfig GetConfig(string protocolType)

@@ -85,6 +85,7 @@ else
             .WithAutomaticReconnect()
             .Build();
 
+        // دریافت سیگنال‌ها
         _hubConnection.On<List<SignalData>>("ReceiveSignals", (receivedSignals) =>
         {
             Signals = receivedSignals ?? new List<SignalData>();
@@ -92,6 +93,7 @@ else
             StateHasChanged();
         });
 
+        // مدیریت تلاش مجدد برای اتصال
         _hubConnection.Reconnecting += (error) =>
         {
             IsConnecting = true;
@@ -99,6 +101,7 @@ else
             return Task.CompletedTask;
         };
 
+        // اتصال مجدد موفق
         _hubConnection.Reconnected += (connectionId) =>
         {
             IsConnecting = false;
@@ -106,6 +109,7 @@ else
             return Task.CompletedTask;
         };
 
+        // مدیریت قطع ارتباط
         _hubConnection.Closed += async (error) =>
         {
             IsConnecting = false;

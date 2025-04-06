@@ -21,7 +21,7 @@
             <select class="form-control" @bind="formModel.ProtocolType" @bind:event="onchange">
                 <option value="http">HTTP</option>
                 <option value="modbus">Modbus</option>
-                <option value="signalar">SignalR</option>
+                <option value="signalr">SignalR</option>
             </select>
         </div>
 
@@ -114,7 +114,7 @@
                 formModel.IpAddress = "192.168.1.1";  // پیش‌فرض برای Modbus
                 formModel.Port = 502;  // پیش‌فرض برای Modbus
                 break;
-            case "signalar":
+            case "signalr":
                 formModel.IpAddress = "127.0.0.1";  // پیش‌فرض برای SignalR
                 formModel.Port = 5000;  // پیش‌فرض برای SignalR
                 break;

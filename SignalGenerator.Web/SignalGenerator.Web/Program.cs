@@ -23,6 +23,10 @@ var builder = WebApplication.CreateBuilder(args);
 // تنظیمات LoggerHelper
 ConfigureLoggerHelper(builder);
 
+// بارگذاری تنظیمات ProtocolConfigs از appsettings.json
+builder.Services.Configure<ProtocolConfigs>(
+    builder.Configuration.GetSection("ProtocolConfigs")); // 👈 این خط کلیدیه
+
 // تنظیمات سرویس‌ها
 await ConfigureServicesAsync(builder);
 
@@ -33,10 +37,10 @@ ConfigureMiddleware(app);
 
 app.Run();
 
-// 🛠️ متدهای ماژولار برای خوانایی و نگهداری بهتر کد
+// ----------------------------------------------------
+// متدهای ماژولار برای خوانایی و نگهداری بهتر کد
 // ----------------------------------------------------
 
-// تنظیمات LoggerHelper (لاگ‌گیری کنسول و فایل)
 void ConfigureLoggerHelper(WebApplicationBuilder builder)
 {
     builder.Services.AddSingleton<ILoggerService, LoggerHelper>(provider =>
@@ -52,15 +56,12 @@ void ConfigureLoggerHelper(WebApplicationBuilder builder)
     });
 }
 
-// تنظیمات سرویس‌های مختلف
 async Task ConfigureServicesAsync(WebApplicationBuilder builder)
 {
     var loggerService = builder.Services.BuildServiceProvider().GetRequiredService<ILoggerService>();
 
-    // ثبت IHttpClientFactory
-    builder.Services.AddHttpClient();  // ثبت IHttpClientFactory
+    builder.Services.AddHttpClient();
 
-    // لاگ‌گیری مرحله‌ای
     await LogInitializationStep(loggerService, "📌 Initializing core services...");
     RegisterCoreServices(builder);
 
@@ -82,7 +83,6 @@ async Task ConfigureServicesAsync(WebApplicationBuilder builder)
     await LogInitializationStep(loggerService, "📌 Configuring response compression...");
     RegisterResponseCompression(builder);
 
-    // اضافه کردن Swagger برای محیط توسعه
     if (builder.Environment.IsDevelopment())
     {
         builder.Services.AddEndpointsApiExplorer();
@@ -90,7 +90,6 @@ async Task ConfigureServicesAsync(WebApplicationBuilder builder)
     }
 }
 
-// ثبت سرویس‌های اصلی
 void RegisterCoreServices(WebApplicationBuilder builder)
 {
     builder.Services.AddRazorPages();
@@ -104,18 +103,15 @@ void RegisterCoreServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<AppState>();
     builder.Services.AddScoped<ISignalDataService, SignalDataService>();
 
-    // Register ProtocolConfigProvider
-    builder.Services.AddScoped<ProtocolConfigProvider>();
-
+    builder.Services.AddScoped<ProtocolConfigProvider>(); // 👈 مهم
     builder.Services.AddScoped<ProtocolFactory>(sp =>
     {
         var configProvider = sp.GetRequiredService<ProtocolConfigProvider>();
         var loggerService = sp.GetRequiredService<ILoggerService>();
-        return new ProtocolFactory(sp, configProvider); // تغییر از IConfiguration به ProtocolConfigProvider
+        return new ProtocolFactory(sp, configProvider);
     });
 }
 
-// تنظیمات پایگاه داده
 void RegisterDatabase(WebApplicationBuilder builder)
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -126,7 +122,6 @@ void RegisterDatabase(WebApplicationBuilder builder)
         options.UseSqlServer(connectionString));
 }
 
-// تنظیمات Identity
 void RegisterIdentity(WebApplicationBuilder builder)
 {
     builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -134,18 +129,15 @@ void RegisterIdentity(WebApplicationBuilder builder)
         .AddDefaultTokenProviders();
 }
 
-// تنظیمات پروتکل‌ها
 void RegisterProtocols(WebApplicationBuilder builder)
 {
     var config = builder.Configuration;
 
-    // اطمینان حاصل کنید که پروتکل‌ها به‌درستی از تنظیمات بارگذاری می‌شوند
-    RegisterProtocol<Http_Protocol>(builder, config, "ProtocolSettings:Http:HubUrl", "http://localhost:5000");
-    RegisterProtocol<ModbusProtocol>(builder, config, "ProtocolSettings:Modbus:IpAddress", "127.0.0.1");
-    RegisterProtocol<SignalRProtocol>(builder, config, "ProtocolSettings:SignalR:HubUrl", "http://localhost:5000/signalhub");
+    RegisterProtocol<Http_Protocol>(builder, config, "ProtocolConfigs:Http:BasePath", "/api");
+    RegisterProtocol<ModbusProtocol>(builder, config, "ProtocolConfigs:Modbus:IpAddress", "127.0.0.1");
+    RegisterProtocol<SignalRProtocol>(builder, config, "ProtocolConfigs:SignalR:HubUrl", "http://localhost:5000/signalhub");
 }
 
-// ثبت پروتکل‌ها به صورت مشترک
 void RegisterProtocol<TProtocol>(WebApplicationBuilder builder, IConfiguration config, string configKey, string defaultValue)
     where TProtocol : class, IProtocolCommunication
 {
@@ -154,36 +146,31 @@ void RegisterProtocol<TProtocol>(WebApplicationBuilder builder, IConfiguration c
         var logger = sp.GetRequiredService<ILoggerService>();
         var protocolUrl = config.GetValue<string>(configKey) ?? defaultValue;
 
-        // برای ModbusProtocol که به پارامترهای خاص نیاز دارد
         if (typeof(TProtocol) == typeof(ModbusProtocol))
         {
-            var ipAddress = config.GetValue<string>("ProtocolSettings:Modbus:IpAddress");
-            var port = config.GetValue<int>("ProtocolSettings:Modbus:Port");
+            var ipAddress = config.GetValue<string>("ProtocolConfigs:Modbus:IpAddress");
+            var port = config.GetValue<int>("ProtocolConfigs:Modbus:Port");
 
-            // ایجاد و بازگشت نمونه ModbusProtocol با پارامترهای لازم
             return new ModbusProtocol(ipAddress, port, logger);
         }
 
-        // برای دیگر پروتکل‌ها از ActivatorUtilities استفاده می‌کنیم.
         return ActivatorUtilities.CreateInstance<TProtocol>(sp, protocolUrl, logger);
     });
 }
 
-// تنظیمات SignalR
 void RegisterSignalR(WebApplicationBuilder builder)
 {
     var config = builder.Configuration;
     builder.Services.AddSignalR(options =>
     {
         options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-        options.MaximumReceiveMessageSize = config.GetValue<long>("SignalR:MaxMessageSize", 512000);
+        options.MaximumReceiveMessageSize = config.GetValue<long>("ProtocolConfigs:SignalR:MaxMessageSize", 512000);
     }).AddMessagePackProtocol();
 
     builder.Services.AddScoped<SignalProcessorService>();
     builder.Services.AddServerSideBlazor();
 }
 
-// تنظیمات CORS
 void RegisterCors(WebApplicationBuilder builder)
 {
     var allowedOrigins = builder.Configuration
@@ -202,7 +189,6 @@ void RegisterCors(WebApplicationBuilder builder)
     });
 }
 
-// تنظیمات فشرده‌سازی پاسخ‌ها
 void RegisterResponseCompression(WebApplicationBuilder builder)
 {
     if (!builder.Environment.IsDevelopment())
@@ -220,7 +206,6 @@ void RegisterResponseCompression(WebApplicationBuilder builder)
     }
 }
 
-// پیکربندی میدل‌ویر
 void ConfigureMiddleware(WebApplication app)
 {
     if (app.Environment.IsDevelopment())
@@ -247,9 +232,12 @@ void ConfigureMiddleware(WebApplication app)
 
     app.MapRazorPages();
     app.MapBlazorHub();
+
+    // ✅ این خط اضافه شده: مسیر SignalR Hub
+    app.MapHub<SignalHub>("/signalhub"); // حتما namespace رو هم اضافه کن
 }
 
-// متد کمک برای لاگ‌گیری مرحله‌ای
+
 async Task LogInitializationStep(ILoggerService loggerService, string message)
 {
     await loggerService.LogAsync(message);

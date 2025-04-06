@@ -38,9 +38,9 @@ public class ProtocolFactory
                 var baseUrl = $"http://{httpConfig.IpAddress}:{httpConfig.Port}{httpConfig.BasePath}";
                 return new Http_Protocol(httpClientFactory, baseUrl, logger);
 
-            case "signalar":
+            case "signalr":
                 var signalrConfig = (SignalRConfig)config;
-                var hubUrl = $"http://{signalrConfig.IpAddress}:{signalrConfig.Port}{signalrConfig.HubUrl}";
+                var hubUrl = $"{signalrConfig.HubUrl}";
                 return new SignalRProtocol(hubUrl, logger);
 
             default:
