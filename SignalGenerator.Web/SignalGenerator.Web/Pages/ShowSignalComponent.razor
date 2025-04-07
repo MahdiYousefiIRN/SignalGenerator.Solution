@@ -73,7 +73,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var hubUrl = Configuration["ProtocolSettings:SignalR:HubUrl"];
+        var hubUrl = Configuration["ProtocolConfigs:SignalR:HubUrl"];
         if (string.IsNullOrEmpty(hubUrl))
         {
             ErrorMessage = "❌ آدرس هاب SignalR در پیکربندی تنظیم نشده است.";

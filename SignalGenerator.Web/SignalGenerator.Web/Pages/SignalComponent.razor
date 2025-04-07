@@ -46,7 +46,7 @@ else
             if (string.IsNullOrEmpty(userId))
             {
                 errorMessage = "User ID is not available.";
-                return;
+                // return;
             }
 
             if (ProtocolCommunication == null)
@@ -63,7 +63,7 @@ else
                     MinFrequency = 45,
                     MaxFrequency = 65,
                     IntervalMs = 5 * 1000,
-                    ProtocolType = "DefaultProtocol"
+                    ProtocolType = "ProtocolConfigs"
                 };
 
             signals = await SignalProcessor.GetSignalsAsync(config, ProtocolCommunication);
