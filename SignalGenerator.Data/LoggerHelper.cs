@@ -1,10 +1,9 @@
 ﻿using System;
 using System.IO;
-using System.Text.Json;
-using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Globalization;
 
 namespace SignalGenerator.Helpers
 {
@@ -24,40 +23,78 @@ namespace SignalGenerator.Helpers
         Task LogInfo(string message);
         Task LogWarning(string message);
         Task LogError(string message);
-        Task LogError(string message, Exception ex);      
-
+        Task LogError(string message, Exception ex);
         Task LogCritical(string message);
     }
 
     public class LoggerHelper : ILoggerService, IDisposable
     {
-        private readonly string _logFilePath;
+        private readonly string _logDirectory;
         private readonly string _source;
         private readonly LogLevel _minLogLevel;
         private readonly List<Func<string, Task>> _logHandlers;
         private readonly ConcurrentQueue<string> _logQueue;
         private readonly Task _logProcessor;
         private bool _disposed = false;
+        private DateTime _lastLogTime;
+        private string _currentLogFilePath;
+        private string _currentLogDirectory;
 
         public LoggerHelper(
-            string logFilePath = "logs.json",
-            string source = "Application",
-            LogLevel minLogLevel = LogLevel.Info)
+            string logDirectory = "Logs", // پوشه ای برای ذخیره لاگ ها
+            string source = "SignalGeneratorApp", // نام منبع لاگ ها
+            LogLevel minLogLevel = LogLevel.Info) // حداقل سطح لاگ
         {
-            _logFilePath = logFilePath;
+            _logDirectory = logDirectory;
             _source = source;
             _minLogLevel = minLogLevel;
             _logHandlers = new List<Func<string, Task>>();
             _logQueue = new ConcurrentQueue<string>();
 
+            // ایجاد پوشه برای ذخیره لاگ‌ها در صورت عدم وجود
+            Directory.CreateDirectory(_logDirectory);
+
+            // فرآیند پردازش لاگ‌ها
             _logProcessor = Task.Run(ProcessLogQueue);
+            _lastLogTime = DateTime.UtcNow;
+
+            // تاریخ شمسی برای نامگذاری پوشه‌ها
+            PersianCalendar persianCalendar = new PersianCalendar();
+            int year = persianCalendar.GetYear(DateTime.UtcNow);
+            int month = persianCalendar.GetMonth(DateTime.UtcNow);
+            int day = persianCalendar.GetDayOfMonth(DateTime.UtcNow);
+            _currentLogDirectory = Path.Combine(_logDirectory, $"{year}-{month:D2}-{day:D2}");
+            Directory.CreateDirectory(_currentLogDirectory);
+
+            _currentLogFilePath = GenerateLogFilePath(); // تولید مسیر فایل لاگ جدید
+        }
+
+        private string GenerateLogFilePath()
+        {
+            // تاریخ شمسی برای نامگذاری فایل
+            PersianCalendar persianCalendar = new PersianCalendar();
+            int year = persianCalendar.GetYear(DateTime.UtcNow);
+            int month = persianCalendar.GetMonth(DateTime.UtcNow);
+            int day = persianCalendar.GetDayOfMonth(DateTime.UtcNow);
+            int hour = persianCalendar.GetHour(DateTime.UtcNow);
+            int minute = persianCalendar.GetMinute(DateTime.UtcNow);
+
+            // تولید نام فایل لاگ با تاریخ و زمان شمسی
+            string timeStamp = $"{year}-{month:D2}-{day:D2}_{hour:D2}{minute:D2}";
+            return Path.Combine(_currentLogDirectory, $"log_{timeStamp}.txt");
         }
 
         private void LogInternal(string message, LogLevel level, Exception? exception)
         {
             if (level < _minLogLevel) return;
 
-            string logTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            // تاریخ و زمان شمسی برای لاگ
+            PersianCalendar persianCalendar = new PersianCalendar();
+            int year = persianCalendar.GetYear(DateTime.UtcNow);
+            int month = persianCalendar.GetMonth(DateTime.UtcNow);
+            int day = persianCalendar.GetDayOfMonth(DateTime.UtcNow);
+            string logTime = $"{year}-{month:D2}-{day:D2} {persianCalendar.GetHour(DateTime.UtcNow)}:{persianCalendar.GetMinute(DateTime.UtcNow):D2}";
+
             string logMessage = $"[{logTime}] [{_source}] [{level}] {message}";
 
             if (exception != null)
@@ -66,6 +103,14 @@ namespace SignalGenerator.Helpers
             }
 
             _logQueue.Enqueue(logMessage);
+
+            // بررسی زمان برای تغییر فایل لاگ
+            if ((DateTime.UtcNow - _lastLogTime).TotalMinutes >= 1)
+            {
+                // اگر بیشتر از یک دقیقه از زمان آخرین لاگ گذشته باشد، فایل جدید ایجاد می‌شود
+                _currentLogFilePath = GenerateLogFilePath();
+                _lastLogTime = DateTime.UtcNow;
+            }
         }
 
         public async Task LogAsync(string message, LogLevel level = LogLevel.Info, Exception? exception = null)
@@ -89,6 +134,11 @@ namespace SignalGenerator.Helpers
             await LogAsync(message, LogLevel.Error);
         }
 
+        public async Task LogError(string message, Exception ex)
+        {
+            await LogAsync(message, LogLevel.Error, ex);
+        }
+
         public async Task LogCritical(string message)
         {
             await LogAsync(message, LogLevel.Critical);
@@ -100,7 +150,7 @@ namespace SignalGenerator.Helpers
             {
                 while (_logQueue.TryDequeue(out var logMessage))
                 {
-                    // پردازش لاگ‌ها به صورت غیرهمزمان
+                    // ارسال لاگ به هر مقصد (مانند کنسول یا فایل)
                     var tasks = new List<Task>();
 
                     foreach (var handler in _logHandlers)
@@ -109,6 +159,16 @@ namespace SignalGenerator.Helpers
                     }
 
                     await Task.WhenAll(tasks);  // منتظر اتمام همه پردازش‌ها
+
+                    // ذخیره لاگ به فایل
+                    try
+                    {
+                        await File.AppendAllTextAsync(_currentLogFilePath, logMessage + Environment.NewLine);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("⚠ Error writing to log file: " + ex.Message);
+                    }
 
                     await Task.Delay(50); // جلوگیری از مصرف بیش از حد منابع
                 }
@@ -126,89 +186,20 @@ namespace SignalGenerator.Helpers
         {
             AddLogDestination(async logMessage =>
             {
-                // استخراج سطح لاگ از پیام
-                var level = ExtractLogLevel(logMessage);
-
-                // تنظیم رنگ بر اساس سطح لاگ
-                ConsoleColor color = level switch
-                {
-                    LogLevel.Error => ConsoleColor.Red,
-                    LogLevel.Warning => ConsoleColor.Yellow,
-                    LogLevel.Info => ConsoleColor.Green,
-                    LogLevel.Debug => ConsoleColor.Cyan,
-                    LogLevel.Trace => ConsoleColor.Gray,
-                    _ => ConsoleColor.White
-                };
-
                 // نمایش پیام لاگ در کنسول
-                Console.ForegroundColor = color;
                 Console.WriteLine(logMessage);
-                Console.ResetColor();
-
-                await Task.CompletedTask;  // نیاز به انتظار برای عملیات کنسول نداریم
+                await Task.CompletedTask;
             });
-        }
-
-        private LogLevel ExtractLogLevel(string logMessage)
-        {
-            // استخراج سطح لاگ از پیام
-            if (logMessage.Contains("ERROR")) return LogLevel.Error;
-            if (logMessage.Contains("WARNING")) return LogLevel.Warning;
-            if (logMessage.Contains("INFO")) return LogLevel.Info;
-            if (logMessage.Contains("DEBUG")) return LogLevel.Debug;
-            return LogLevel.Trace;
         }
 
         public void EnableFileLogging()
         {
-            AddLogDestination(async logMessage =>
-            {
-                try
-                {
-                    await File.AppendAllTextAsync(_logFilePath, logMessage + Environment.NewLine);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("⚠ Error writing to log file: " + ex.Message);
-                }
-            });
-        }
-
-        private async Task WriteToEventLog(string logMessage)
-        {
-            try
-            {
-                if (!EventLog.SourceExists(_source))
-                {
-                    EventLog.CreateEventSource(_source, "Application");
-                }
-
-                using EventLog eventLog = new EventLog("Application") { Source = _source };
-                eventLog.WriteEntry(logMessage, EventLogEntryType.Information);
-                await Task.CompletedTask; // کار نوشتن به Event Log غیرهمزمان است
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("⚠ Error writing to event log: " + ex.Message);
-            }
-        }
-
-        public async Task EnableEventLogAsync()
-        {
-            AddLogDestination(async logMessage =>
-            {
-                await WriteToEventLog(logMessage);
-            });
+            // این متد دیگر نیازی به تغییر ندارد چرا که لاگ‌ها به‌طور پیش‌فرض در فایل ذخیره می‌شوند.
         }
 
         public void Dispose()
         {
             _disposed = true;
-        }
-
-        public async Task LogError(string message, Exception ex)
-        {
-            await LogAsync(message, LogLevel.Error, ex);
         }
     }
 }

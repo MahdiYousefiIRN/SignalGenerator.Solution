@@ -8,7 +8,8 @@
 <form @onsubmit="GetSignals" class="signal-form">
     <div class="form-group">
         <label for="countInput">Count:</label>
-        <input id="countInput" type="number" @bind="Count" class="form-control" required>
+        <input id="countInput" type="number" @bind="Count" class="form-control" required min="1" max="100" placeholder="Enter count" />
+        <div class="invalid-feedback" style="display: @(!isCountValid ? "block" : "none")">Please enter a valid count between 1 and 100.</div>
     </div>
 
     <div class="form-group">
@@ -20,16 +21,8 @@
         </select>
     </div>
 
-    <button type="submit" class="btn btn-primary">Get Signals</button>
+    <button type="submit" class="btn btn-primary" disabled="@isLoading">Get Signals</button>
 </form>
-
-<!-- Result Section -->
-<div id="result" class="mt-4">
-    @if (!string.IsNullOrEmpty(Result))
-    {
-        <pre>@Result</pre>
-    }
-</div>
 
 <!-- Loading Spinner -->
 @if (isLoading)
@@ -39,21 +32,49 @@
     </div>
 }
 
+<!-- Result Section -->
+@if (!string.IsNullOrEmpty(Result))
+{
+    <div class="card mt-4">
+        <div class="card-header">Signal Results</div>
+        <div class="card-body">
+            <pre>@Result</pre>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-4">
+        <strong>Error:</strong> @errorMessage
+    </div>
+}
+
 @code {
     private int Count { get; set; }
     private string ProtocolType { get; set; } = "http";
     private string Result { get; set; }
     private bool isLoading { get; set; } = false;
+    private bool isCountValid => Count > 0 && Count <= 100;
+    private string errorMessage { get; set; }
 
     /// <summary>
     /// Handles the signal request based on the user input.
     /// </summary>
     private async Task GetSignals()
     {
+        // Validate the input count
+        if (!isCountValid)
+        {
+            errorMessage = "The signal count must be between 1 and 100.";
+            return;
+        }
+
         try
         {
-            // Set loading state
+            // Set loading state and clear previous error
             isLoading = true;
+            errorMessage = null;
             Logger.LogInformation("🔍 Requesting signals with Count: {Count}, Protocol: {ProtocolType}", Count, ProtocolType);
 
             // Send GET request to the API
@@ -69,7 +90,7 @@
         catch (Exception ex)
         {
             // Handle error and display error message
-            Result = $"❌ Error: {ex.Message}";
+            errorMessage = $"❌ Error: {ex.Message}";
             Logger.LogError("⛔ Error fetching signals: {Message}", ex.Message);
         }
         finally

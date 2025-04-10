@@ -1,26 +1,32 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
 
 <div class="sidebar">
     <div class="menu-header">
+        <!-- Menu toggle button to collapse/expand the sidebar -->
         <button class="menu-toggle" @onclick="ToggleNavMenu">☰</button>
         <span class="title">Signal Generator</span>
     </div>
 
     <nav class="nav-links @NavMenuCssClass" @onclick="ToggleNavMenu">
+        <!-- Iterate over the navigation links and render them -->
         @foreach (var link in NavLinks)
         {
-            <NavLink class="nav-item" href="@link.Href" Match="link.Match">
+            <button class="nav-item" @onclick="(e) => NavigateToPage(link.Href)">
                 <span class="@link.Icon"></span> @link.Label
-            </NavLink>
+            </button>
         }
     </nav>
 </div>
 
 @code {
+    // Controls whether the navigation menu is collapsed or not
     private bool collapseNavMenu = true;
+
+    // CSS class for the collapsed state of the navigation menu
     private string? NavMenuCssClass => collapseNavMenu ? "collapsed" : null;
 
-    // List of links for navigation
+    // List of navigation links with Href, Label, Icon, and Match type
     private List<NavLinkItem> NavLinks => new List<NavLinkItem>
     {
         new NavLinkItem { Href = "/home", Label = "Home", Icon = "oi oi-home", Match = NavLinkMatch.All },
@@ -30,9 +36,25 @@
         new NavLinkItem { Href = "/testing", Label = "Testing", Icon = "oi oi-check", Match = NavLinkMatch.Prefix }
     };
 
+    // Opens a new tab with the given link URL using JSRuntime
+    private async Task NavigateToPage(string href)
+    {
+        try
+        {
+            // Use JSRuntime to open the link in a new tab
+            await JSRuntime.InvokeVoidAsync("open", href, "_blank");
+        }
+        catch (Exception ex)
+        {
+            // Log any error if the new tab could not be opened
+            Console.WriteLine("Error opening new tab: " + ex.Message);
+        }
+    }
+
+    // Toggles the state of the navigation menu between collapsed and expanded
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
 
-    // NavLinkItem class to structure links
+    // Class representing each navigation link with properties: Href, Label, Icon, and Match type
     private class NavLinkItem
     {
         public string Href { get; set; }
@@ -43,6 +65,7 @@
 }
 
 <style>
+    /* Sidebar styling */
     .sidebar {
         width: 250px;
         background: #343a40;
@@ -51,6 +74,7 @@
         position: fixed;
     }
 
+    /* Header section of the menu (toggle button and title) */
     .menu-header {
         display: flex;
         align-items: center;
@@ -58,6 +82,7 @@
         background: #23272b;
     }
 
+    /* Style for the toggle button */
     .menu-toggle {
         background: none;
         border: none;
@@ -66,15 +91,18 @@
         cursor: pointer;
     }
 
+    /* Title of the sidebar */
     .title {
         margin-left: 10px;
         font-size: 18px;
     }
 
+    /* Navigation links container */
     .nav-links {
         padding: 10px;
     }
 
+    /* Styling for each navigation item */
     .nav-item {
         display: block;
         color: white;
@@ -83,10 +111,12 @@
         transition: background 0.3s;
     }
 
+        /* Hover effect for navigation items */
         .nav-item:hover {
             background: #495057;
         }
 
+    /* CSS class for the collapsed state of the sidebar */
     .collapsed {
         display: none;
     }

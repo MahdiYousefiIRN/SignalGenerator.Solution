@@ -16,107 +16,101 @@ public class SignalProcessorService : ISignalProcessorService
     }
 
     private IProtocolCommunication? GetSignalRProtocol()
-    {
-        return _protocols.OfType<SignalRProtocol>().FirstOrDefault();
-    }
+        => _protocols.OfType<SignalRProtocol>().FirstOrDefault();
 
     public async Task StartSignalGeneration(SignalData config, IProtocolCommunication protocolCommunication)
     {
+        await _logger.LogInfo($"🚀 StartSignalGeneration: Initiating for '{config.Name}'");
+
         try
         {
-            await _logger.LogInfo($"🛠️ Starting signal generation for {config.Name}...");
-
-            var signalData = await protocolCommunication.ReceiveSignalsAsync(config);
-            bool sendSuccess = await protocolCommunication.SendSignalsAsync(signalData);
-
-            if (!sendSuccess)
-            {
-                await _logger.LogError("❌ Failed to send signals via protocol.");
-            }
-
-            var signalR = GetSignalRProtocol();
-            if (signalR != null)
-            {
-                bool signalRSent = await signalR.SendSignalsAsync(signalData);
-                if (!signalRSent)
-                    await _logger.LogError("❌ Failed to send signals via SignalR.");
-                else
-                    await _logger.LogInfo("✅ Signals sent successfully via SignalR.");
-            }
-        }
-        catch (Exception ex)
-        {
-            await _logger.LogError($"❌ Error in StartSignalGeneration: {ex.Message}", ex);
-        }
-    }
-
-    public async Task<List<SignalData>> GetSignalsAsync(SignalData config, IProtocolCommunication protocolCommunication)
-    {
-        try
-        {
-            await _logger.LogInfo("🔄 Retrieving signals...");
-
             var signals = await protocolCommunication.ReceiveSignalsAsync(config);
+            await _logger.LogInfo($"📥 Received {signals.Count} signals from protocol.");
+
+            bool sent = await protocolCommunication.SendSignalsAsync(signals);
+            if (!sent)
+                await _logger.LogWarning("⚠️ Primary protocol failed to send signals.");
+            else
+                await _logger.LogInfo("✅ Signals sent successfully via primary protocol.");
 
             var signalR = GetSignalRProtocol();
             if (signalR != null)
             {
                 bool signalRSent = await signalR.SendSignalsAsync(signals);
-                if (!signalRSent)
-                    await _logger.LogError("❌ Failed to send signals via SignalR.");
-                else
-                    await _logger.LogInfo("✅ Signals sent successfully via SignalR.");
+                await _logger.LogInfo(signalRSent
+                    ? "✅ Signals sent successfully via SignalR."
+                    : "⚠️ SignalR failed to send signals.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await _logger.LogError("❌ Exception in StartSignalGeneration", ex);
+        }
+    }
+
+    public async Task<List<SignalData>> GetSignalsAsync(SignalData config, IProtocolCommunication protocolCommunication)
+    {
+        await _logger.LogInfo($"🔍 GetSignalsAsync: Fetching signals for config '{config.Name}'");
+
+        try
+        {
+            var signals = await protocolCommunication.ReceiveSignalsAsync(config);
+            await _logger.LogInfo($"📥 Retrieved {signals.Count} signals.");
+
+            var signalR = GetSignalRProtocol();
+            if (signalR != null)
+            {
+                bool result = await signalR.SendSignalsAsync(signals);
+                await _logger.LogInfo(result
+                    ? "✅ Signals forwarded via SignalR."
+                    : "⚠️ Failed to send signals via SignalR.");
             }
 
             return signals;
         }
         catch (Exception ex)
         {
-            await _logger.LogError($"❌ Error in GetSignalsAsync: {ex.Message}", ex);
+            await _logger.LogError("❌ Exception in GetSignalsAsync", ex);
             return new List<SignalData>();
         }
     }
 
     public async Task<bool> SendSignalsAsync(List<SignalData> signalData, IProtocolCommunication protocolCommunication)
     {
+        await _logger.LogInfo($"📤 SendSignalsAsync: Sending {signalData.Count} signals.");
+
         try
         {
-            await _logger.LogInfo($"📡 Sending {signalData.Count} signals...");
-
             bool result = await protocolCommunication.SendSignalsAsync(signalData);
-
-            if (!result)
-            {
-                await _logger.LogError("❌ Failed to send signals via protocol.");
-            }
+            await _logger.LogInfo(result
+                ? "✅ Signals sent successfully."
+                : "⚠️ Failed to send signals.");
 
             return result;
         }
         catch (Exception ex)
         {
-            await _logger.LogError($"❌ Error in SendSignalsAsync: {ex.Message}", ex);
+            await _logger.LogError("❌ Exception in SendSignalsAsync", ex);
             return false;
         }
     }
 
     public async Task<bool> MonitorSignalStatus(IProtocolCommunication protocolCommunication)
     {
+        await _logger.LogInfo("📡 Monitoring signal status...");
+
         try
         {
-            await _logger.LogInfo("📡 Monitoring signal status...");
+            bool isOnline = await protocolCommunication.MonitorStatusAsync();
+            await _logger.LogInfo(isOnline
+                ? "✅ Signal is online."
+                : "⚠️ Signal is offline.");
 
-            bool result = await protocolCommunication.MonitorStatusAsync();
-
-            if (!result)
-            {
-                await _logger.LogError("❌ Signal status is offline.");
-            }
-
-            return result;
+            return isOnline;
         }
         catch (Exception ex)
         {
-            await _logger.LogError($"❌ Error in MonitorSignalStatus: {ex.Message}", ex);
+            await _logger.LogError("❌ Exception in MonitorSignalStatus", ex);
             return false;
         }
     }

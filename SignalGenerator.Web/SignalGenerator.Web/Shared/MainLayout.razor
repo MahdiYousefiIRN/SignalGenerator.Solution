@@ -1,12 +1,18 @@
 ﻿@inherits LayoutComponentBase
 
 <div class="layout">
+    <!-- Sidebar Section -->
     <div class="sidebar">
         <div class="menu-header">
+            <!-- Button to toggle the sidebar visibility -->
             <button class="menu-toggle" @onclick="ToggleNavMenu">☰</button>
+            <!-- Sidebar Title -->
             <span class="title">Signal Generator</span>
         </div>
+
+        <!-- Navigation Links Section -->
         <nav class="nav-links @NavMenuCssClass" @onclick="ToggleNavMenu">
+            <!-- Navigation links with icons and labels -->
             <NavLink class="nav-item" href="/home" Match="NavLinkMatch.All">
                 <span class="oi oi-home"></span> Home
             </NavLink>
@@ -25,23 +31,32 @@
         </nav>
     </div>
 
+    <!-- Main Content Section -->
     <div class="main-content">
+        <!-- This will render the content of the current page -->
         @Body
     </div>
 </div>
 
 @code {
+    // Flag to manage the state of the sidebar (collapsed or expanded)
     private bool collapseNavMenu = true;
+
+    // CSS class to apply based on the collapseNavMenu state
     private string? NavMenuCssClass => collapseNavMenu ? "collapsed" : null;
+
+    // Method to toggle the sidebar visibility (collapsed or expanded)
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
 }
 
 <style>
+    /* Layout style: Flexbox container for sidebar and content */
     .layout {
         display: flex;
         height: 100vh;
     }
 
+    /* Sidebar styles: Fixed position on the left */
     .sidebar {
         width: 250px;
         background: #343a40;
@@ -50,6 +65,7 @@
         position: fixed;
     }
 
+    /* Header inside the sidebar, containing the toggle button and title */
     .menu-header {
         display: flex;
         align-items: center;
@@ -57,6 +73,7 @@
         background: #23272b;
     }
 
+    /* Sidebar toggle button style */
     .menu-toggle {
         background: none;
         border: none;
@@ -65,34 +82,40 @@
         cursor: pointer;
     }
 
+    /* Title style inside the sidebar */
     .title {
         margin-left: 10px;
         font-size: 18px;
     }
 
+    /* Navigation links container */
     .nav-links {
         padding: 10px;
     }
 
+    /* Style for each navigation link */
     .nav-item {
         display: block;
         color: white;
         text-decoration: none;
         padding: 10px;
-        transition: background 0.3s;
+        transition: background 0.3s ease;
     }
 
+        /* Hover effect for navigation items */
         .nav-item:hover {
             background: #495057;
         }
 
+    /* This class hides the sidebar when it's collapsed */
     .collapsed {
         display: none;
     }
 
+    /* Main content area styles: space for content when sidebar is open */
     .main-content {
-        margin-left: 260px;
+        margin-left: 260px; /* Offset for sidebar */
         padding: 20px;
-        flex-grow: 1;
+        flex-grow: 1; /* Allow content to take remaining space */
     }
 </style>

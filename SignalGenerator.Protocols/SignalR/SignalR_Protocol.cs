@@ -15,7 +15,6 @@ namespace SignalGenerator.Protocols.SignalR
         private readonly ILoggerService _logger;
         private HubConnection _hubConnection;
 
-        // سازنده کلاس با بررسی پارامترهای ورودی
         public SignalR_Protocol(string hubUrl, ILoggerService logger)
         {
             _hubUrl = hubUrl ?? throw new ArgumentNullException(nameof(hubUrl));
@@ -23,20 +22,17 @@ namespace SignalGenerator.Protocols.SignalR
             InitializeHubConnection();
         }
 
-        // متد برای اتصال به SignalR Hub
         private void InitializeHubConnection()
         {
             _hubConnection = new HubConnectionBuilder()
                 .WithUrl(_hubUrl)
                 .Build();
 
-            // پردازش پیام‌های دریافتی
             _hubConnection.On<string>("ReceiveMessage", message =>
             {
                 _logger.LogInfo($"Received message from SignalR Hub: {message}");
             });
 
-            // مدیریت قطع ارتباط
             _hubConnection.Closed += async (exception) =>
             {
                 _logger.LogWarning($"Connection closed. Attempting to reconnect...");
@@ -44,7 +40,6 @@ namespace SignalGenerator.Protocols.SignalR
             };
         }
 
-        // متد برای ارسال سیگنال‌ها به SignalR Hub
         public async Task<bool> SendSignalsAsync(List<SignalData> signalData)
         {
             if (signalData == null || signalData.Count == 0)
@@ -55,13 +50,11 @@ namespace SignalGenerator.Protocols.SignalR
 
             try
             {
-                // بررسی وضعیت اتصال و اتصال مجدد در صورت نیاز
                 if (_hubConnection.State != HubConnectionState.Connected)
                 {
                     await ReconnectAsync();
                 }
 
-                // ارسال سیگنال‌ها به SignalR Hub
                 await _hubConnection.SendAsync("SendSignals", signalData);
                 _logger.LogInfo($"Successfully sent {signalData.Count} signals to SignalR Hub.");
                 return true;
@@ -73,18 +66,15 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
 
-        // متد برای دریافت سیگنال‌ها از SignalR Hub
         public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
             try
             {
-                // بررسی وضعیت اتصال و اتصال مجدد در صورت نیاز
                 if (_hubConnection.State != HubConnectionState.Connected)
                 {
                     await ReconnectAsync();
                 }
 
-                // ارسال درخواست برای دریافت سیگنال‌ها
                 var signals = await _hubConnection.InvokeAsync<List<SignalData>>("ReceiveSignals", config);
                 if (signals != null && signals.Count > 0)
                 {
@@ -102,18 +92,15 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
 
-        // متد برای نظارت بر وضعیت اتصال SignalR
         public async Task<bool> MonitorStatusAsync()
         {
             try
             {
-                // بررسی وضعیت اتصال و اتصال مجدد در صورت نیاز
                 if (_hubConnection.State != HubConnectionState.Connected)
                 {
                     await ReconnectAsync();
                 }
 
-                // درخواست وضعیت از SignalR Hub
                 var status = await _hubConnection.InvokeAsync<bool>("CheckStatus");
                 _logger.LogInfo($"SignalR Hub status: {status}");
                 return status;
@@ -125,7 +112,6 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
 
-        // متد برای اتصال مجدد به SignalR Hub
         private async Task ReconnectAsync()
         {
             try
@@ -143,14 +129,11 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
 
-        // متد Dispose برای آزادسازی منابع
         public void Dispose()
         {
-            // فراخوانی متد DisposeAsync به‌صورت همگام
             DisposeAsync().GetAwaiter().GetResult();
         }
 
-        // متد DisposeAsync برای آزادسازی منابع به‌صورت ناهمگام
         public async Task DisposeAsync()
         {
             if (_hubConnection != null)
@@ -159,4 +142,5 @@ namespace SignalGenerator.Protocols.SignalR
             }
         }
     }
+
 }

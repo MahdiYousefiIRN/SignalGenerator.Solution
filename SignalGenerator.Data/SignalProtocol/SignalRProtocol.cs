@@ -13,9 +13,9 @@ namespace SignalGenerator.Data.SignalProtocol
     {
         private readonly HubConnection _connection;
         private readonly ILoggerService _logger;
-        private readonly SemaphoreSlim _connectionLock = new SemaphoreSlim(1, 1);
-        private bool _isConnecting = false;
-        private bool _disposed = false;
+        private readonly SemaphoreSlim _connectionLock = new(1, 1);
+        private bool _isConnecting;
+        private bool _disposed;
 
         private const int MaxRetries = 3;
         private const int ReconnectDelayMs = 5000;
@@ -32,21 +32,21 @@ namespace SignalGenerator.Data.SignalProtocol
                 .WithAutomaticReconnect()
                 .Build();
 
-            _connection.Reconnecting += (exception) =>
+            _connection.Reconnecting += (Exception? ex) =>
             {
-                _logger.LogAsync("⚠️ Attempting to reconnect to SignalR hub...", LogLevel.Warning);
+                return _logger.LogAsync("⚠️ Attempting to reconnect to SignalR hub...", LogLevel.Warning);
+            };
+
+
+            _connection.Reconnected += connectionId =>
+            {
+                _ = _logger.LogAsync($"✅ Reconnected to SignalR hub. Connection ID: {connectionId}", LogLevel.Info);
                 return Task.CompletedTask;
             };
 
-            _connection.Reconnected += (connectionId) =>
+            _connection.Closed += async _ =>
             {
-                _logger.LogAsync($"✅ Successfully reconnected to SignalR hub. Connection ID: {connectionId}", LogLevel.Info);
-                return Task.CompletedTask;
-            };
-
-            _connection.Closed += async (exception) =>
-            {
-                _ = _logger.LogAsync("❌ SignalR connection closed. Retrying...", LogLevel.Error);
+                await _logger.LogAsync("❌ SignalR connection closed. Retrying...", LogLevel.Error);
                 await Task.Delay(ReconnectDelayMs);
                 await EnsureConnectionAsync();
             };
@@ -62,24 +62,24 @@ namespace SignalGenerator.Data.SignalProtocol
                 if (_connection.State == HubConnectionState.Connected) return;
 
                 _isConnecting = true;
-                await _logger.LogAsync("🔄 Attempting to connect to SignalR hub...", LogLevel.Info);
+                await _logger.LogAsync("🔄 Connecting to SignalR hub...", LogLevel.Info);
 
                 for (int i = 0; i < MaxRetries; i++)
                 {
                     try
                     {
                         await _connection.StartAsync();
-                        await _logger.LogAsync("✅ Successfully connected to SignalR hub.", LogLevel.Info);
+                        await _logger.LogAsync("✅ Connected to SignalR hub.", LogLevel.Info);
                         return;
                     }
                     catch (Exception ex)
                     {
-                        await _logger.LogAsync($"⚠ Connection attempt {i + 1} failed: {ex.Message}", LogLevel.Warning);
+                        await _logger.LogAsync($"⚠ Attempt {i + 1} failed: {ex.Message}", LogLevel.Warning);
                         if (i < MaxRetries - 1) await Task.Delay(ReconnectDelayMs * (i + 1));
                     }
                 }
 
-                throw new ProtocolException("❌ Failed to connect to SignalR hub after multiple attempts");
+                throw new ProtocolException("❌ Unable to connect to SignalR hub after multiple attempts.");
             }
             finally
             {
@@ -90,9 +90,9 @@ namespace SignalGenerator.Data.SignalProtocol
 
         public async Task<bool> SendSignalsAsync(List<SignalData> signalData)
         {
-            if (signalData == null || signalData.Count == 0)
+            if (signalData is null || signalData.Count == 0)
             {
-                await _logger.LogAsync("⚠ Attempted to send empty signal data to SignalR hub.", LogLevel.Warning);
+                await _logger.LogAsync("⚠ No signal data to send.", LogLevel.Warning);
                 return false;
             }
 
@@ -102,43 +102,43 @@ namespace SignalGenerator.Data.SignalProtocol
             {
                 await _logger.LogAsync($"📡 Sending {signalData.Count} signals...", LogLevel.Info);
                 await _connection.SendAsync("SendSignals", signalData);
-                await _logger.LogAsync("✅ Signals sent successfully.", LogLevel.Info);
+                await _logger.LogAsync("✅ Signals sent.", LogLevel.Info);
                 return true;
             }
             catch (Exception ex)
             {
-                await _logger.LogAsync($"❌ Error sending signals to SignalR hub: {ex.Message}", LogLevel.Error, ex);
+                await _logger.LogAsync($"❌ Error sending signals: {ex.Message}", LogLevel.Error, ex);
                 return false;
             }
         }
 
         public async Task<List<SignalData>> ReceiveSignalsAsync(SignalData config)
         {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config), "Configuration cannot be null.");
+            if (config is null)
+                throw new ArgumentNullException(nameof(config), "❌ Configuration cannot be null.");
 
             await EnsureConnectionAsync();
 
-            var signalsTcs = new TaskCompletionSource<List<SignalData>>();
+            var tcs = new TaskCompletionSource<List<SignalData>>();
 
             try
             {
-                await _logger.LogAsync("📡 Listening for incoming signals...", LogLevel.Info);
+                await _logger.LogAsync("📡 Waiting for signals...", LogLevel.Info);
 
-                _connection.On<List<SignalData>>("ReceiveSignals", (receivedSignals) =>
+                _connection.On<List<SignalData>>("ReceiveSignals", received =>
                 {
-                    _logger.LogAsync($"✅ Received {receivedSignals?.Count ?? 0} signals.", LogLevel.Info);
-                    signalsTcs.TrySetResult(receivedSignals);
+                    _logger.LogAsync($"✅ Received {received?.Count ?? 0} signals.", LogLevel.Info);
+                    tcs.TrySetResult(received);
                 });
 
                 await _connection.SendAsync("RequestSignals", config.SignalCount);
-                await _logger.LogAsync("🔄 Requested signals from server...", LogLevel.Info);
+                await _logger.LogAsync("🔄 Signal request sent to server...", LogLevel.Info);
 
-                return await signalsTcs.Task;
+                return await tcs.Task;
             }
             catch (Exception ex)
             {
-                await _logger.LogAsync($"❌ Error receiving signals from SignalR hub: {ex.Message}", LogLevel.Error, ex);
+                await _logger.LogAsync($"❌ Error receiving signals: {ex.Message}", LogLevel.Error, ex);
                 return new List<SignalData>();
             }
         }
@@ -152,19 +152,21 @@ namespace SignalGenerator.Data.SignalProtocol
                 try
                 {
                     await _logger.LogAsync("📡 Checking server status...", LogLevel.Info);
-                    var status = await _connection.InvokeAsync<bool>("MonitorStatus");
+                    var isOnline = await _connection.InvokeAsync<bool>("MonitorStatus");
 
-                    await _logger.LogAsync($"✅ Server status: {(status ? "🟢 Online" : "🔴 Offline")}", status ? LogLevel.Info : LogLevel.Warning);
-                    return status;
+                    await _logger.LogAsync($"✅ Server status: {(isOnline ? "🟢 Online" : "🔴 Offline")}", isOnline ? LogLevel.Info : LogLevel.Warning);
+                    return isOnline;
                 }
                 catch (Exception ex)
                 {
-                    await _logger.LogAsync($"❌ Error checking SignalR server status (Attempt {attempt}/{MaxRetries}): {ex.Message}", LogLevel.Warning, ex);
+                    await _logger.LogAsync($"❌ Status check failed (Attempt {attempt}): {ex.Message}", LogLevel.Warning, ex);
                     if (attempt == MaxRetries)
-                        throw new ProtocolException("Failed to monitor SignalR server status after multiple attempts", ex);
+                        throw new ProtocolException("❌ Failed to check server status after multiple attempts.", ex);
+
                     await Task.Delay(ReconnectDelayMs * attempt);
                 }
             }
+
             return false;
         }
 
@@ -176,15 +178,14 @@ namespace SignalGenerator.Data.SignalProtocol
             {
                 await _logger.LogAsync("🛑 Disposing SignalR connection...", LogLevel.Warning);
                 if (_connection.State != HubConnectionState.Disconnected)
-                {
                     await _connection.StopAsync();
-                }
+
                 await _connection.DisposeAsync();
                 await _logger.LogAsync("✅ SignalR connection disposed.", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                await _logger.LogAsync($"⚠ Error disposing SignalR connection: {ex.Message}", LogLevel.Error, ex);
+                await _logger.LogAsync($"⚠ Error during disposal: {ex.Message}", LogLevel.Error, ex);
             }
             finally
             {
@@ -197,6 +198,6 @@ namespace SignalGenerator.Data.SignalProtocol
     public class ProtocolException : Exception
     {
         public ProtocolException(string message) : base(message) { }
-        public ProtocolException(string message, Exception innerException) : base(message, innerException) { }
+        public ProtocolException(string message, Exception inner) : base(message, inner) { }
     }
 }

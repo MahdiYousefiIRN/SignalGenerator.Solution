@@ -12,42 +12,50 @@
 <h2>📡 Send Signal</h2>
 
 <div class="form-container">
+    <!-- Form for sending signals -->
     <EditForm Model="@formModel" OnValidSubmit="SendSignals">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
+        <!-- Protocol Type Dropdown -->
         <div class="form-group">
             <label>Protocol Type:</label>
-            <select class="form-control" @bind="formModel.ProtocolType" @bind:event="onchange">
+            <select class="form-control" value="@formModel.ProtocolType" @onchange="HandleProtocolChange">
                 <option value="http">HTTP</option>
                 <option value="modbus">Modbus</option>
                 <option value="signalr">SignalR</option>
             </select>
         </div>
 
+        <!-- IP Address Input Field -->
         <div class="form-group">
             <label>IP Address:</label>
             <InputText class="form-control" @bind-Value="formModel.IpAddress" />
         </div>
 
+        <!-- Port Number Input Field -->
         <div class="form-group">
             <label>Port:</label>
             <InputNumber class="form-control" @bind-Value="formModel.Port" />
         </div>
 
+        <!-- Number of Signals Input Field -->
         <div class="form-group">
             <label>Number of Signals:</label>
             <InputNumber class="form-control" @bind-Value="formModel.SignalCount" />
         </div>
 
+        <!-- Duration (in minutes) Input Field -->
         <div class="form-group">
             <label>Duration (in minutes):</label>
             <InputNumber class="form-control" @bind-Value="formModel.Duration" />
         </div>
 
+        <!-- Submit Button for Sending Signals -->
         <button type="submit" class="btn btn-primary">🚀 Send Signals</button>
     </EditForm>
 
+    <!-- Result Display: Success or Failure Message -->
     @if (!string.IsNullOrWhiteSpace(SendResult))
     {
         <div class="alert @ResultCssClass mt-3">@SendResult</div>
@@ -55,92 +63,122 @@
 </div>
 
 @code {
+    // Form model for input data binding
     private SignalFormModel formModel = new();
     private string SendResult = string.Empty;
 
+    // CSS class for alert message based on result (Success or Error)
     private string ResultCssClass => SendResult.StartsWith("✅") ? "alert-success" : "alert-danger";
 
+    // Initializes default values when the page is loaded
+    protected override void OnInitialized()
+    {
+        UpdateDefaults(force: true);
+    }
+
+    // Handles the signal sending logic upon form submission
     private async Task SendSignals()
     {
         try
         {
+            // Generate a list of random signals based on the input count
             var signals = GenerateRandomSignals(formModel.SignalCount);
+
+            // Create the protocol object using the factory based on selected protocol type
             var protocol = ProtocolFactory.CreateProtocol(formModel.ProtocolType, formModel.IpAddress, formModel.Port);
 
+            // Log info message before sending signals
             await Logger.LogInfo($"🚀 Sending {signals.Count} signals using {formModel.ProtocolType} on {formModel.IpAddress}:{formModel.Port}...");
 
+            // Call the service to send the signals and capture the result
             var result = await SignalProcessorService.SendSignalsAsync(signals, protocol);
             SendResult = result ? "✅ Signals sent successfully." : "❌ Failed to send signals.";
 
+            // Log the result
             await Logger.LogInfo(SendResult);
         }
         catch (Exception ex)
         {
+            // Handle any errors that occur during the process
             SendResult = $"❌ Error: {ex.Message}";
             await Logger.LogError("Error occurred while sending signals.", ex);
         }
     }
 
+    // Handles the change of the selected protocol type
+    private async Task HandleProtocolChange(ChangeEventArgs e)
+    {
+        // Update protocol type and default values when changed
+        formModel.ProtocolType = e.Value?.ToString() ?? "http";
+        UpdateDefaults();
+    }
+
+    // Updates default values for IP address and port based on the selected protocol type
+    private void UpdateDefaults(bool force = false)
+    {
+        string defaultIp = "127.0.0.1";
+        int defaultPort = 5000;
+
+        // Set default IP and port based on the protocol type
+        switch (formModel.ProtocolType.ToLower())
+        {
+            case "http":
+                defaultIp = "127.0.0.1";
+                defaultPort = 5000;
+                break;
+            case "modbus":
+                defaultIp = "127.0.0.1";
+                defaultPort = 502;
+                break;
+            case "signalr":
+                defaultIp = "127.0.0.1";
+                defaultPort = 5000;
+                break;
+        }
+
+        // Apply default values if necessary
+        if (force || string.IsNullOrWhiteSpace(formModel.IpAddress) || formModel.IpAddress == "127.0.0.1")
+        {
+            formModel.IpAddress = defaultIp;
+        }
+
+        if (force || formModel.Port == 0 || formModel.Port == 5000)
+        {
+            formModel.Port = defaultPort;
+        }
+    }
+
+    // Generates a list of random signal data
     private List<SignalData> GenerateRandomSignals(int count)
     {
         var random = new Random();
         return Enumerable.Range(0, count).Select(_ => new SignalData
             {
-                Frequency = random.NextDouble() * (70 - 40) + 40,
-                Power = random.NextDouble() * 100,
-                Timestamp = DateTime.UtcNow,
-                CoilStatus = random.NextDouble() > 0.5,
-                DiscreteInputStatus = random.NextDouble() > 0.5,
-                ProtocolType = formModel.ProtocolType
+                Frequency = random.NextDouble() * (70 - 40) + 40, // Random frequency between 40 and 70
+                Power = random.NextDouble() * 100,                // Random power between 0 and 100
+                Timestamp = DateTime.UtcNow,                       // Current timestamp
+                CoilStatus = random.NextDouble() > 0.5,           // Random coil status (true or false)
+                DiscreteInputStatus = random.NextDouble() > 0.5,  // Random discrete input status (true or false)
+                ProtocolType = formModel.ProtocolType             // Protocol type selected by user
             }).ToList();
     }
 
-    // این متد زمانی که پروتکل تغییر می‌کند، فراخوانی می‌شود
-    private void OnProtocolChange()
-    {
-        UpdateDefaults();
-    }
-
-    // به‌روزرسانی مقادیر پیش‌فرض براساس پروتکل انتخابی
-    private void UpdateDefaults()
-    {
-        switch (formModel.ProtocolType.ToLower())
-        {
-            case "http":
-                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض برای HTTP
-                formModel.Port = 5000;  // پیش‌فرض برای HTTP
-                break;
-            case "modbus":
-                formModel.IpAddress = "192.168.1.1";  // پیش‌فرض برای Modbus
-                formModel.Port = 502;  // پیش‌فرض برای Modbus
-                break;
-            case "signalr":
-                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض برای SignalR
-                formModel.Port = 5000;  // پیش‌فرض برای SignalR
-                break;
-            default:
-                formModel.IpAddress = "127.0.0.1";  // پیش‌فرض کلی
-                formModel.Port = 5000;  // پیش‌فرض کلی
-                break;
-        }
-    }
-
-    // مدل داده برای فرم ارسال سیگنال
+    // Model to represent the form data for signal sending
     private class SignalFormModel
     {
-        [Required]
+        [Required] // Required field for Protocol Type
         public string ProtocolType { get; set; } = "http";
 
-        [Required(ErrorMessage = "IP address is required.")]
+        [Required(ErrorMessage = "IP address is required.")] // Validation for IP address
         public string IpAddress { get; set; } = "127.0.0.1";
 
-        [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535.")]
+        [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535.")] // Validation for Port number
         public int Port { get; set; } = 5000;
 
-        [Range(1, 1000, ErrorMessage = "Please enter between 1 and 1000 signals.")]
+        [Range(1, 1000, ErrorMessage = "Please enter between 1 and 1000 signals.")] // Validation for number of signals
         public int SignalCount { get; set; } = 10;
 
-        [Range(1, 1440, ErrorMessage = "Duration must be between 1 and 1440 minutes.")]
+        [Range(1, 1440, ErrorMessage = "Duration must be between 1 and 1440 minutes.")] // Validation for Duration
         public int Duration { get; set; } = 60;
     }
 }

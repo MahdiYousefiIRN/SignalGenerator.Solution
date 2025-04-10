@@ -15,12 +15,12 @@
 
 <button @onclick="GenerateSignals">Generate Signals</button>
 
-@if (!string.IsNullOrEmpty(errorMessage))
+@if (!string.IsNullOrWhiteSpace(errorMessage))
 {
     <p style="color:red">@errorMessage</p>
 }
 
-@if (signals != null && signals.Any())
+@if (signals?.Any() == true)
 {
     <ul>
         @foreach (var signal in signals)
@@ -35,23 +35,27 @@ else
 }
 
 @code {
-    private List<SignalData> signals = new(); // مقداردهی اولیه
+    private List<SignalData> signals = new();
     private string errorMessage = string.Empty;
 
     private async Task GenerateSignals()
     {
+        errorMessage = string.Empty;
+
         try
         {
             var userId = await GetCurrentUserId();
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrWhiteSpace(userId))
             {
-                errorMessage = "User ID is not available.";
-                // return;
+                errorMessage = "❗ User ID not found.";
+                Logger.LogWarning(errorMessage);
+                return;
             }
 
-            if (ProtocolCommunication == null)
+            if (ProtocolCommunication is null)
             {
-                errorMessage = "ProtocolCommunication is not available.";
+                errorMessage = "❗ Protocol communication service is not initialized.";
+                Logger.LogError(errorMessage);
                 return;
             }
 
@@ -62,30 +66,31 @@ else
                     SignalCount = 10,
                     MinFrequency = 45,
                     MaxFrequency = 65,
-                    IntervalMs = 5 * 1000,
+                    IntervalMs = 5000,
                     ProtocolType = "ProtocolConfigs"
                 };
 
             signals = await SignalProcessor.GetSignalsAsync(config, ProtocolCommunication);
             await DataStore.SaveSignalsAsync(signals);
 
-            // ارسال سیگنال‌ها به API
             using var httpClient = new HttpClient();
             var response = await httpClient.PostAsJsonAsync("http://localhost:5000/api/signals/post", signals);
 
             if (!response.IsSuccessStatusCode)
             {
-                errorMessage = $"Failed to send signals. Status Code: {response.StatusCode}";
+                errorMessage = $"❌ Failed to send signals. HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
+                Logger.LogWarning(errorMessage);
             }
             else
             {
-                errorMessage = "Signals sent successfully!";
+                errorMessage = "✅ Signals sent successfully.";
+                Logger.LogInformation("Signals posted successfully to API.");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error generating signals");
-            errorMessage = "An error occurred while generating signals.";
+            errorMessage = "❌ An unexpected error occurred while generating signals.";
+            Logger.LogError(ex, errorMessage);
         }
     }
 
@@ -94,9 +99,9 @@ else
         try
         {
             var userId = await GetCurrentUserId();
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrWhiteSpace(userId))
             {
-                errorMessage = "User ID is not available.";
+                errorMessage = "⚠️ User ID not available during initialization.";
                 signals = new();
                 return;
             }
@@ -105,8 +110,8 @@ else
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error retrieving signals");
-            errorMessage = "An error occurred while retrieving signals.";
+            errorMessage = "❌ Error while loading existing signals.";
+            Logger.LogError(ex, errorMessage);
             signals = new();
         }
     }
@@ -114,6 +119,8 @@ else
     private async Task<string?> GetCurrentUserId()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        return authState?.User?.Identity?.IsAuthenticated == true ? authState.User.Identity.Name : null;
+        var user = authState?.User;
+
+        return user?.Identity?.IsAuthenticated == true ? user.Identity.Name : null;
     }
 }

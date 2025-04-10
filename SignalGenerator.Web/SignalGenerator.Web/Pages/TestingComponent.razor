@@ -19,6 +19,7 @@
 @code {
     private string message;
 
+    // ارسال سیگنال به سرور و تست
     private async Task TestSignalTransmission()
     {
         try
@@ -51,13 +52,13 @@
                 {
                     Logger.LogError("Validation failed: " + validationResult.ErrorMessage);
                 }
-                message = "Signal data is invalid.";
+                message = "Signal data is invalid. Please check the input values.";
                 return; // بازگشت از متد اگر داده‌ها معتبر نباشند
             }
 
             // ارسال سیگنال معتبر برای تست
             var result = await TestingService.TestSignalTransmissionAsync(signalData);
-            message = result.Success ? "Signal transmission test successful." : "Signal transmission test failed.";
+            message = result.Success ? "Signal transmission test successful." : $"Signal transmission test failed. {result.SignalRErrors.ToString()}";
             Logger.LogInformation("Test signal transmission logic executed successfully.");
         }
         catch (Exception ex)
@@ -67,6 +68,7 @@
         }
     }
 
+    // دریافت وضعیت تست از سرور
     private async Task GetTestStatus()
     {
         try
@@ -74,7 +76,7 @@
             // دریافت وضعیت تست
             var status = await TestingService.GetTestStatusAsync();
             message = status ?? "Test status is unavailable.";
-            Logger.LogInformation("Test status fetched successfully.");
+            Logger.LogInformation($"Test status fetched successfully: {status}");
         }
         catch (Exception ex)
         {
@@ -83,6 +85,7 @@
         }
     }
 
+    // دریافت خطاها از سرور
     private async Task GetErrors()
     {
         try
@@ -90,7 +93,7 @@
             // دریافت خطاها
             var errors = await ErrorHandlingService.GetErrorsAsync();
             message = errors.Any() ? string.Join(", ", errors) : "No errors found.";
-            Logger.LogInformation("Errors fetched successfully.");
+            Logger.LogInformation($"Errors fetched successfully: {string.Join(", ", errors)}");
         }
         catch (Exception ex)
         {
